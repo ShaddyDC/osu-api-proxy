@@ -292,6 +292,7 @@ func main() {
 		user, err := osuAPI.GetCurrentUserParsed(token.AccessToken)
 		if err != nil {
 			fmt.Println(err)
+			fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 			return
 		}
 
@@ -304,6 +305,7 @@ func main() {
 		exists, err := userExists(user.ID, db)
 		if err != nil {
 			fmt.Println(err)
+			fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 			return
 		}
 		fmt.Println("Exists:", exists)
@@ -315,12 +317,14 @@ func main() {
 			err = updateTokens(db, expiryTime, token.AccessToken, token.RefreshToken, user.ID)
 			if err != nil {
 				fmt.Println(err)
+				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 				return
 			}
 
 			key, err = userKey(user.ID, db)
 			if err != nil {
 				fmt.Println(err)
+				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 				return
 			}
 		} else {
@@ -328,18 +332,21 @@ func main() {
 			key, err = uniqueKey(db)
 			if err != nil {
 				fmt.Println(err)
+				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 				return
 			}
 
 			stmt, err := db.Prepare("INSERT INTO test (id,api_key,expiryTime,accessToken,refreshToken) VALUES(?,?,?,?,?)")
 			if err != nil {
 				fmt.Println(err)
+				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 				return
 			}
 
 			_, err = stmt.Exec(user.ID, key, expiryTime, token.AccessToken, token.RefreshToken)
 			if err != nil {
 				fmt.Println(err)
+				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
 				return
 			}
 		}
