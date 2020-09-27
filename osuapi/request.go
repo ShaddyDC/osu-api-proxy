@@ -14,6 +14,10 @@ const (
 )
 
 func apiRequest(reqType requestType, url string, body io.Reader, token *string) (*http.Response, error) {
+	if !notRateLimited() {
+		return nil, fmt.Errorf("Server rate limited")
+	}
+
 	var requestTypeString string
 	if reqType == postRequestVal {
 		requestTypeString = "POST"
