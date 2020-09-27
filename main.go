@@ -162,7 +162,7 @@ func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 func refreshTokensRoutine(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 	refreshTokens(db, osuAPI)
 	for {
-		refreshTokens(db, osuAPI)
+		go refreshTokens(db, osuAPI)
 		time.Sleep(time.Hour * 23)
 	}
 }
