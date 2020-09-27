@@ -152,6 +152,15 @@ func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 
 		expiryTime := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 		updateTokens(db, expiryTime, token.AccessToken, token.RefreshToken, id)
+		time.Sleep(time.Second)
+	}
+}
+
+func refreshTokensRoutine(db *sql.DB, osuAPI *osuapi.OsuAPI) {
+	refreshTokens(db, osuAPI)
+	for {
+		refreshTokens(db, osuAPI)
+		time.Sleep(time.Hour * 23)
 	}
 }
 
@@ -183,12 +192,7 @@ func main() {
 		RedirectURI:  redirectURI()}
 
 	// Refresh tokens now and daily
-	go func() {
-		refreshTokens(db, osuAPI)
-		for range time.Tick(time.Hour * 23) {
-			refreshTokens(db, osuAPI)
-		}
-	}()
+	go refreshTokensRoutine(db, osuAPI)
 
 	http.Handle("/authorize", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query()["code"]
