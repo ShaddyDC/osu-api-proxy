@@ -164,6 +164,42 @@ func refreshTokensRoutine(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 	}
 }
 
+type apiHandler interface {
+	ServeAPI(*osuapi.OsuAPI, string, string) (string, error)
+}
+
+type apiFunc func(*osuapi.OsuAPI, string, string) (string, error)
+
+func (f apiFunc) ServeAPI(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
+	return f(osuAPI, api, token)
+}
+
+func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) http.Handler {
+	return func(next apiFunc) http.Handler {
+		f := func(w http.ResponseWriter, r *http.Request) {
+			key := r.Header.Get("api-key")
+			if key == "" {
+				fmt.Fprintf(w, "{error:\"Invalid API key\"}")
+				return
+			}
+
+			token, err := keyToToken(key, db)
+			if err != nil {
+				fmt.Fprintf(w, "{error:\"Couldn't get token\"}")
+				return
+			}
+
+			body, err := next(osuAPI, r.URL.Path, token)
+			if err != nil {
+				fmt.Fprintf(w, "{error:\"Error with api call: %v\"}", err)
+				return
+			}
+			fmt.Fprintf(w, body)
+		}
+		return http.HandlerFunc(f)
+	}
+}
+
 func main() {
 	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
 	// mysql -h127.0.0.1 -uroot -ppassword
@@ -265,29 +301,18 @@ func main() {
 		fmt.Fprintf(w, "Remember your api key %q!", key)
 	}))
 
-	http.Handle("/api/user/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := r.Header.Get("api-key")
-		if key == "" {
-			fmt.Fprintf(w, "{Error:\"Invalid API key\"}")
-			return
-		}
+	apiHandler := handleAPIRequest(db, osuAPI)
 
-		token, err := keyToToken(key, db)
-		if err != nil {
-			fmt.Fprintf(w, "{Error:\"Couldn't get token\"}")
-			return
-		}
-
-		id := strings.TrimPrefix(r.URL.Path, "/api/user/")
+	http.Handle("/api/user/", apiHandler(apiFunc(func(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
+		id := strings.TrimPrefix(api, "/api/user/")
 		fmt.Println("Requesting user", id)
 
 		user, err := osuAPI.GetUser(token, id)
 		if err != nil {
-			fmt.Fprintf(w, "{Error:\"Error with api call\"}")
-			return
+			return "", fmt.Errorf("{Error:\"Error with api call: %v\"}", err)
 		}
-		fmt.Fprintf(w, string(user))
-	}))
+		return string(user), nil
+	})))
 
 	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
