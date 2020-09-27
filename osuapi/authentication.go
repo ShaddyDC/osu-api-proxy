@@ -61,7 +61,7 @@ func getToken(code anyPost) (*TokenResult, error) {
 		return nil, fmt.Errorf("Error JSONifying object %v. %v", code, err)
 	}
 
-	resp, err := apiPostRequest("https://osu.ppy.sh/oauth/token", bytes.NewBuffer(buf), nil)
+	resp, err := postRequestWithBody("https://osu.ppy.sh/oauth/token", bytes.NewBuffer(buf))
 	if err != nil {
 		return nil, fmt.Errorf("Error executing auth request. %v", err)
 	}

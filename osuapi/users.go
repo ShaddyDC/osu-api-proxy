@@ -46,7 +46,7 @@ func (osuAPI *OsuAPI) GetCurrentUserParsed(token string) (*UserCompact, error) {
 
 // GetCurrentUser returns info about the user the token belongs to
 func (osuAPI *OsuAPI) GetCurrentUser(token string) ([]byte, error) {
-	resp, err := apiGetRequest("https://osu.ppy.sh/api/v2/me/osu", nil, &token)
+	resp, err := apiGetRequest("https://osu.ppy.sh/api/v2/me/osu", token)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting user. %v", err)
 	}
@@ -62,7 +62,7 @@ func (osuAPI *OsuAPI) GetCurrentUser(token string) ([]byte, error) {
 
 // GetUser fetches a user's data from the api
 func (osuAPI *OsuAPI) GetUser(token string, id string) ([]byte, error) {
-	resp, err := apiGetRequest("https://osu.ppy.sh/api/v2/users/"+id+"/osu", nil, &token)
+	resp, err := apiGetRequest("https://osu.ppy.sh/api/v2/users/"+id+"/osu", token)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting user. %v", err)
 	}
