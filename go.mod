@@ -1,4 +1,4 @@
-module osu-api-backend
+module osu-api-proxy
 
 go 1.15
 

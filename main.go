@@ -17,7 +17,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"osu-api-backend/osuapi"
+	"osu-api-proxy/osuapi"
 )
 
 func clientSecret() string {
