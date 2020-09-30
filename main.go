@@ -39,6 +39,10 @@ func main() {
 	}
 	defer db.Close()
 
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
 	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
 
 	// Refresh tokens now and daily
