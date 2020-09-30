@@ -6,8 +6,6 @@ import (
 	"html"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,22 +13,6 @@ import (
 
 	"osu-api-proxy/osuapi"
 )
-
-func clientSecret() string {
-	return os.Getenv("CLIENT_SECRET")
-}
-
-func clientID() string {
-	return os.Getenv("CLIENT_ID")
-}
-
-func redirectURI() string {
-	return os.Getenv("REDIRECT_URI")
-}
-
-func databaseDSN() string {
-	return os.Getenv("DATABASE_DSN")
-}
 
 func main() {
 	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
@@ -44,23 +26,23 @@ func main() {
 	// 	`refreshToken` LONGTEXT NOT NULL,
 	//  Unique Key(`api_key`)
 	// );
-	db, err := sql.Open("mysql", "root:password@tcp(127.0.0.1:3306)/test?parseTime=true")
+
+	cfg, err := getConfig()
+
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	db, err := sql.Open("mysql", cfg.Database.Dsn+"?parseTime=true")
 	if err != nil {
 		panic(err.Error())
 	}
 	defer db.Close()
 
-	id, err := strconv.Atoi(clientID())
-	if err != nil {
-		panic(err.Error())
-	}
-	osuAPI := &osuapi.OsuAPI{
-		ClientID:     id,
-		ClientSecret: clientSecret(),
-		RedirectURI:  redirectURI()}
+	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
 
 	// Refresh tokens now and daily
-	go refreshTokensRoutine(db, osuAPI)
+	go refreshTokensRoutine(db, &osuAPI)
 	go cleanupVisitors()
 
 	http.Handle("/authorize", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -141,7 +123,7 @@ func main() {
 		fmt.Fprintf(w, "Remember your api key %q!", key)
 	}))
 
-	apiHandler := handleAPIRequest(db, osuAPI)
+	apiHandler := handleAPIRequest(db, &osuAPI)
 
 	http.Handle("/api/user/", apiHandler(apiFunc(func(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
 		id := strings.TrimPrefix(api, "/api/user/")
@@ -160,5 +142,5 @@ func main() {
 		fmt.Fprintf(w, "Hello, %q<br> <a href=%q>go here</a>", html.EscapeString(r.URL.String()), osuURL)
 	}))
 
-	log.Fatal(http.ListenAndServe(":8125", nil))
+	log.Fatal(http.ListenAndServe(cfg.HTTP.Address, nil))
 }

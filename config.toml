@@ -1,0 +1,12 @@
+[database]
+dsn = ""
+connection_max = 5000
+enabled = true
+
+[api]
+client_id = 0
+client_secret = ""
+redirect_uri = ""
+
+[http]
+address = ":8125"

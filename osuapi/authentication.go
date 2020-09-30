@@ -44,8 +44,8 @@ func (osuAPI *OsuAPI) OsuRequestAuthURL() (string, error) {
 	}
 
 	params := url.Values{}
-	params.Add("client_id", strconv.Itoa(osuAPI.ClientID))
-	params.Add("redirect_uri", osuAPI.RedirectURI)
+	params.Add("client_id", strconv.Itoa(osuAPI.config.ClientID))
+	params.Add("redirect_uri", osuAPI.config.RedirectURI)
 	params.Add("response_type", "code")
 	params.Add("scope", "public")
 	params.Add("state", "")
@@ -96,11 +96,11 @@ func (osuAPI *OsuAPI) GetToken(code string) (*TokenResult, error) {
 	}
 
 	tokenPost := &tokenPost{
-		ClientID:     osuAPI.ClientID,
-		ClientSecret: osuAPI.ClientSecret,
+		ClientID:     osuAPI.config.ClientID,
+		ClientSecret: osuAPI.config.ClientSecret,
 		Code:         code,
 		GrantType:    "authorization_code",
-		RedirectURI:  osuAPI.RedirectURI}
+		RedirectURI:  osuAPI.config.RedirectURI}
 
 	return getToken(tokenPost)
 }
@@ -113,8 +113,8 @@ func (osuAPI *OsuAPI) RefreshToken(token string) (*TokenResult, error) {
 	// https://laravel.com/docs/master/passport#refreshing-tokens
 
 	refreshPost := &refreshPost{
-		ClientID:     osuAPI.ClientID,
-		ClientSecret: osuAPI.ClientSecret,
+		ClientID:     osuAPI.config.ClientID,
+		ClientSecret: osuAPI.config.ClientSecret,
 		GrantType:    "refresh_token",
 		Scope:        "public",
 		RefreshToken: token}
