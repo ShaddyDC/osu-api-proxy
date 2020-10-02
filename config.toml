@@ -7,6 +7,7 @@ enabled = true
 client_id = 0
 client_secret = ""
 redirect_uri = ""
+address = ":8126"
 
 [http]
 address = ":8125"

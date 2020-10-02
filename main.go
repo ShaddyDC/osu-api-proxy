@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"html"
-	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -14,42 +14,8 @@ import (
 	"osu-api-proxy/osuapi"
 )
 
-func main() {
-	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
-	// mysql -h127.0.0.1 -uroot -ppassword
-
-	// CREATE TABLE test (
-	//  `id` INT PRIMARY KEY,
-	// 	`api_key` CHAR(64) NOT NULL,
-	// 	`expiryTime` DATETIME NOT NULL,
-	// 	`accessToken` LONGTEXT NOT NULL,
-	// 	`refreshToken` LONGTEXT NOT NULL,
-	//  Unique Key(`api_key`)
-	// );
-
-	cfg, err := getConfig()
-
-	if err != nil {
-		fmt.Println("Error: ", err)
-	}
-
-	db, err := sql.Open("mysql", cfg.Database.Dsn+"?parseTime=true")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer db.Close()
-
-	db.SetConnMaxLifetime(time.Minute * 3)
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(10)
-
-	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
-
-	// Refresh tokens now and daily
-	go refreshTokensRoutine(db, &osuAPI)
-	go cleanupVisitors()
-
-	http.Handle("/authorize", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query()["code"]
 		// code := r.URL.Query()["state"]	// TODO but not high priority as afaik the worst thing that can happen is that an attacker can share their api key?
 		if len(code) != 1 || len(code[0]) == 0 {
@@ -125,26 +91,100 @@ func main() {
 
 		fmt.Fprintf(w, "Hello, %q <br>\n", html.EscapeString(user.Username))
 		fmt.Fprintf(w, "Remember your api key %q!", key)
-	}))
-
-	apiHandler := handleAPIRequest(db, &osuAPI)
-
-	http.Handle("/api/user/", apiHandler(apiFunc(func(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
-		id := strings.TrimPrefix(api, "/api/user/")
-		fmt.Println("Requesting user", id)
-
-		user, err := osuAPI.GetUser(token, id)
-		if err != nil {
-			return "", fmt.Errorf("{Error:\"Error with api call: %v\"}", err)
-		}
-		return string(user), nil
-	})))
-
-	http.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}
+}
+func mainPageFunc(osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		osuURL, _ := osuAPI.OsuRequestAuthURL()
 		fmt.Fprintf(w, "Hello, %q<br> <a href=%q>go here</a>", html.EscapeString(r.URL.String()), osuURL)
-	}))
+	}
+}
 
-	log.Fatal(http.ListenAndServe(cfg.HTTP.Address, nil))
+func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/authorize", authFunc(db, osuAPI))
+	mux.HandleFunc("/", mainPageFunc(osuAPI))
+
+	server := http.Server{
+		Addr:    cfg.HTTP.Address,
+		Handler: mux,
+	}
+
+	server.ListenAndServe()
+	wg.Done()
+}
+
+func getUserFunc(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
+	id := strings.TrimPrefix(api, "/api/user/")
+	fmt.Println("Requesting user", id)
+
+	user, err := osuAPI.GetUser(token, id)
+	if err != nil {
+		return "", fmt.Errorf("{Error:\"Error with api call: %v\"}", err)
+	}
+	return string(user), nil
+}
+
+func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
+	mux := http.NewServeMux()
+
+	apiHandler := handleAPIRequest(db, osuAPI)
+
+	mux.HandleFunc("/api/user/", apiHandler(getUserFunc))
+
+	server := http.Server{
+		Addr:    cfg.APIConfig.Address,
+		Handler: mux,
+	}
+
+	server.ListenAndServe()
+	wg.Done()
+}
+
+func main() {
+	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
+	// mysql -h127.0.0.1 -uroot -ppassword
+
+	// CREATE TABLE test (
+	//  `id` INT PRIMARY KEY,
+	// 	`api_key` CHAR(64) NOT NULL,
+	// 	`expiryTime` DATETIME NOT NULL,
+	// 	`accessToken` LONGTEXT NOT NULL,
+	// 	`refreshToken` LONGTEXT NOT NULL,
+	//  UNIQUE Key(`api_key`),
+	//  UNIQUE INDEX(`api_key`)
+	// );
+	// CREATE UNIQUE INDEX `key_index` ON test (`api_key`);
+
+	cfg, err := getConfig()
+
+	if err != nil {
+		fmt.Println("Error: ", err)
+	}
+
+	db, err := sql.Open("mysql", cfg.Database.Dsn+"?parseTime=true")
+	if err != nil {
+		panic(err.Error())
+	}
+	defer db.Close()
+
+	db.SetConnMaxLifetime(time.Minute * 3)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
+	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
+
+	// Refresh tokens now and daily
+	go refreshTokensRoutine(db, &osuAPI)
+	go cleanupVisitors()
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+
+	go authServer(db, &osuAPI, cfg, wg)
+	go apiServer(db, &osuAPI, cfg, wg)
+
+	wg.Wait()
 }

@@ -17,8 +17,8 @@ func (f apiFunc) ServeAPI(osuAPI *osuapi.OsuAPI, api string, token string) (stri
 	return f(osuAPI, api, token)
 }
 
-func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) http.Handler {
-	return func(next apiFunc) http.Handler {
+func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) func(w http.ResponseWriter, r *http.Request) {
+	return func(next apiFunc) func(w http.ResponseWriter, r *http.Request) {
 		f := func(w http.ResponseWriter, r *http.Request) {
 			key := r.Header.Get("api-key")
 			if key == "" {
@@ -45,6 +45,6 @@ func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) http
 			}
 			fmt.Fprintf(w, body)
 		}
-		return http.HandlerFunc(f)
+		return f
 	}
 }

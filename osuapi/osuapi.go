@@ -10,6 +10,7 @@ type Config struct {
 	ClientID     int    `mapstructure:"client_id"`
 	ClientSecret string `mapstructure:"client_secret"`
 	RedirectURI  string `mapstructure:"redirect_uri"`
+	Address      string `mapstructure:"address"`
 }
 
 // NewOsuAPI creates a new api instance
