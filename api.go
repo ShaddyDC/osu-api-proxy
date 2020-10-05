@@ -7,18 +7,8 @@ import (
 	"osu-api-proxy/osuapi"
 )
 
-type apiHandler interface {
-	ServeAPI(*osuapi.OsuAPI, string, string) (string, error)
-}
-
-type apiFunc func(*osuapi.OsuAPI, string, string) (string, error)
-
-func (f apiFunc) ServeAPI(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
-	return f(osuAPI, api, token)
-}
-
-func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) func(w http.ResponseWriter, r *http.Request) {
-	return func(next apiFunc) func(w http.ResponseWriter, r *http.Request) {
+func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
+	return func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
 		f := func(w http.ResponseWriter, r *http.Request) {
 			key := r.Header.Get("api-key")
 			if key == "" {
@@ -47,4 +37,24 @@ func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next apiFunc) func
 		}
 		return f
 	}
+}
+
+func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfig) (osuapi.APIFunc, error) {
+	apiCall, exists := osuAPI.Handlers[endpoint.Handler]
+	if !exists {
+		fmt.Println(osuAPI.Handlers)
+		return nil, fmt.Errorf("API handler %v not found or already defined", endpoint.Handler)
+	}
+	delete(osuAPI.Handlers, endpoint.Handler) // Make sure each endpoint is only used once
+
+	var cacheLoader func(next osuapi.APIFunc) osuapi.APIFunc
+	if endpoint.CachePolicy == endpoint.CachePolicy { // TODO
+		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
+			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
+				return next(osuAPI, path, token) // Just pass through for now
+			}
+		}
+	}
+
+	return cacheLoader(apiCall), nil
 }

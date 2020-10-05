@@ -11,14 +11,25 @@ type databaseConfig struct {
 	Dsn string
 }
 
-type httpConfig struct {
-	Address string
+type endpointConfig struct {
+	Handler     string `mapstructure:"handler"`
+	CachePolicy string `mapstructure:"cache"`
+}
+
+type authServerConfig struct {
+	Address string `mapstructure:"address"`
+}
+
+type apiserverConfig struct {
+	Address   string           `mapstructure:"address"`
+	Endpoints []endpointConfig `mapstructure:"endpoint"`
 }
 
 type config struct {
-	Database  databaseConfig `mapstructure:"database"`
-	APIConfig osuapi.Config  `mapstructure:"api"`
-	HTTP      httpConfig     `mapstructure:"http"`
+	Database  databaseConfig   `mapstructure:"database"`
+	APIConfig osuapi.Config    `mapstructure:"api"`
+	ApiServer apiserverConfig  `mapstructure:"apiserver"`
+	Auth      authServerConfig `mapstructure:"auth"`
 }
 
 func getConfig() (config, error) {

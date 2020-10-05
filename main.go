@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -108,7 +107,7 @@ func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGrou
 	mux.HandleFunc("/", mainPageFunc(osuAPI))
 
 	server := http.Server{
-		Addr:    cfg.HTTP.Address,
+		Addr:    cfg.Auth.Address,
 		Handler: mux,
 	}
 
@@ -116,26 +115,22 @@ func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGrou
 	wg.Done()
 }
 
-func getUserFunc(osuAPI *osuapi.OsuAPI, api string, token string) (string, error) {
-	id := strings.TrimPrefix(api, "/api/user/")
-	fmt.Println("Requesting user", id)
-
-	user, err := osuAPI.GetUser(token, id)
-	if err != nil {
-		return "", fmt.Errorf("{Error:\"Error with api call: %v\"}", err)
-	}
-	return string(user), nil
-}
-
 func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
 	mux := http.NewServeMux()
 
-	apiHandler := handleAPIRequest(db, osuAPI)
+	prepareRequest := handleAPIRequest(db, osuAPI)
 
-	mux.HandleFunc("/api/user/", apiHandler(getUserFunc))
+	for _, endpoint := range cfg.ApiServer.Endpoints {
+		apiCall, err := createAPIHandler(db, osuAPI, &endpoint)
+		if err != nil {
+			panic(err.Error())
+		}
+		mux.HandleFunc(endpoint.Handler, prepareRequest(apiCall))
+		fmt.Printf("Handling api %s with cache policy %s\n", endpoint.Handler, endpoint.CachePolicy)
+	}
 
 	server := http.Server{
-		Addr:    cfg.APIConfig.Address,
+		Addr:    cfg.ApiServer.Address,
 		Handler: mux,
 	}
 

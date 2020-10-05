@@ -1,13 +1,23 @@
 [database]
-dsn = ""
+dsn = "root:password@tcp(127.0.0.1:3306)/test"
 connection_max = 5000
 enabled = true
 
 [api]
-client_id = 0
+client_id = 1706
 client_secret = ""
-redirect_uri = ""
+redirect_uri = "http://localhost:8125/authorize"
+
+[apiserver]
 address = ":8126"
 
-[http]
+[[apiserver.endpoint]]
+handler = "/api/user/"
+cache = "never"
+
+# [[apiserver.endpoint]]
+# handler = "test2"
+# cache = "always"
+
+[auth]
 address = ":8125"
