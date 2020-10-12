@@ -26,6 +26,7 @@ func randomString(length int) (string, error) {
 
 func keyToToken(key string, db *sql.DB) (string, error) {
 	rows, err := db.Query("SELECT accessToken FROM api_tokens WHERE api_key=? LIMIT 1", key)
+	defer rows.Close()
 	if err != nil {
 		return "", fmt.Errorf("Error querying database. %v", err)
 	}
@@ -91,6 +92,7 @@ func uniqueKey(db *sql.DB) (string, error) {
 
 func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshToken string, id int64) error {
 	stmt, err := db.Prepare("UPDATE api_tokens SET expiryTime=?,accessToken=?,refreshToken=? WHERE id=?")
+	defer stmt.Close()
 	if err != nil {
 		return err
 	}
@@ -105,6 +107,7 @@ func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshT
 func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 	fmt.Println("Refreshing tokens...")
 	rows, err := db.Query("SELECT id, refreshToken FROM api_tokens")
+	defer rows.Close()
 	if err != nil {
 		fmt.Println("Error refreshing tokens", err)
 		return

@@ -74,6 +74,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 			}
 
 			stmt, err := db.Prepare("INSERT INTO api_tokens (id,api_key,expiryTime,accessToken,refreshToken) VALUES(?,?,?,?,?)")
+			defer stmt.Close()
 			if err != nil {
 				fmt.Println(err)
 				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
