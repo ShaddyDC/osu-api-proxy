@@ -10,15 +10,24 @@ import (
 func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
 	return func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
 		f := func(w http.ResponseWriter, r *http.Request) {
+			ip := getIP(r)
+			ipLimiter := getVisitor(ipVisitors, ip)
+			if !ipLimiter.Allow() {
+				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+				fmt.Println("Ip over rate limit", ip)
+				return
+			}
+
 			key := r.Header.Get("api-key")
 			if key == "" {
 				fmt.Fprintf(w, "{error:\"Invalid API key\"}")
 				return
 			}
 
-			limiter := getVisitor(key)
-			if !limiter.Allow() {
+			apiLimiter := getVisitor(apiVisitors, key)
+			if !apiLimiter.Allow() {
 				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+				fmt.Println("Api key over rate limit", key)
 				return
 			}
 

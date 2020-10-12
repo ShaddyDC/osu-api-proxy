@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,33 +15,54 @@ type visitor struct {
 	lastSeen time.Time
 }
 
-var visitors = make(map[string]*visitor)
-var mu sync.Mutex
+type visitors struct {
+	visitors map[string]*visitor
+	mu       sync.Mutex
+}
 
-func getVisitor(key string) *rate.Limiter {
-	mu.Lock()
-	defer mu.Unlock()
+var apiVisitors = &visitors{}
+var ipVisitors = &visitors{}
 
-	v, exists := visitors[key]
+func getVisitor(vs *visitors, key string) *rate.Limiter {
+	vs.mu.Lock()
+	defer vs.mu.Unlock()
+
+	v, exists := vs.visitors[key]
 	if !exists {
-		limiter := rate.NewLimiter(10, 1)
-		visitors[key] = &visitor{limiter, time.Now()}
+		limiter := rate.NewLimiter(2, 1)
+		vs.visitors[key] = &visitor{limiter, time.Now()}
 		return limiter
 	}
 	v.lastSeen = time.Now()
 	return v.limiter
 }
 
-func cleanupVisitors() {
+func setupVisitors() {
+	apiVisitors.visitors = make(map[string]*visitor)
+	ipVisitors.visitors = make(map[string]*visitor)
+}
+
+func cleanupVisitors(vs *visitors) {
+	vs.mu.Lock()
+	for key, v := range vs.visitors {
+		if time.Since(v.lastSeen) > 3*time.Minute {
+			delete(vs.visitors, key)
+		}
+	}
+	vs.mu.Unlock()
+}
+
+func cleanupVisitorsRoutine() {
 	for {
 		time.Sleep(time.Minute)
 
-		mu.Lock()
-		for key, v := range visitors {
-			if time.Since(v.lastSeen) > 3*time.Minute {
-				delete(visitors, key)
-			}
-		}
-		mu.Unlock()
+		cleanupVisitors(apiVisitors)
+		cleanupVisitors(ipVisitors)
 	}
+}
+
+func getIP(r *http.Request) string {
+	forwarded := r.Header.Get("X-Forwarded-For")
+	ips := strings.Split(forwarded, ",")
+	return ips[len(ips)-1]
 }

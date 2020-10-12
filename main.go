@@ -184,9 +184,11 @@ func main() {
 
 	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
 
+	setupVisitors()
+
 	// Refresh tokens now and daily
 	go refreshTokensRoutine(db, &osuAPI)
-	go cleanupVisitors()
+	go cleanupVisitorsRoutine()
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
