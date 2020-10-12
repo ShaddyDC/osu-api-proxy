@@ -1,12 +1,10 @@
 [database]
-dsn = "root:password@tcp(127.0.0.1:3306)/test"
-connection_max = 5000
-enabled = true
+dsn = "osuproxy:password@tcp(db:3306)/osuproxy"
 
 [api]
 client_id = 1706
 client_secret = ""
-redirect_uri = "http://localhost:8125/authorize"
+redirect_uri = "http://localhost/authorize"
 
 [apiserver]
 address = ":8126"

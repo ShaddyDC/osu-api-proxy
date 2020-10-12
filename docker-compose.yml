@@ -1,0 +1,28 @@
+version: "3.2"
+
+services:
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: osuproxy
+      MYSQL_USER: osuproxy
+      MYSQL_PASSWORD: password
+    volumes:
+      - ./runtime/db:/var/lib/mysql
+
+  osu-api-proxy:
+    build: "./"
+    restart: always
+    environment:
+      API_CLIENT_SECRET: ${API_CLIENT_SECRET}
+
+  web:
+    image: shobble/caddy-cloudflare
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./runtime/caddy_data:/data
+    ports:
+      - 80:80
+      - 443:443

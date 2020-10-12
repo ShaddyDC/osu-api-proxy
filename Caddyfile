@@ -1,0 +1,4 @@
+localhost:80 {
+    reverse_proxy * osu-api-proxy:8125
+    reverse_proxy /api/* osu-api-proxy:8126
+}
