@@ -73,7 +73,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 				return
 			}
 
-			stmt, err := db.Prepare("INSERT INTO test (id,api_key,expiryTime,accessToken,refreshToken) VALUES(?,?,?,?,?)")
+			stmt, err := db.Prepare("INSERT INTO api_tokens (id,api_key,expiryTime,accessToken,refreshToken) VALUES(?,?,?,?,?)")
 			if err != nil {
 				fmt.Println(err)
 				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
@@ -142,7 +142,7 @@ func main() {
 	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
 	// mysql -h127.0.0.1 -uroot -ppassword
 
-	// CREATE TABLE test (
+	// CREATE TABLE api_tokens (
 	//  `id` INT PRIMARY KEY,
 	// 	`api_key` CHAR(64) NOT NULL,
 	// 	`expiryTime` DATETIME NOT NULL,
@@ -151,7 +151,7 @@ func main() {
 	//  UNIQUE Key(`api_key`),
 	//  UNIQUE INDEX(`api_key`)
 	// );
-	// CREATE UNIQUE INDEX `key_index` ON test (`api_key`);
+	// CREATE UNIQUE INDEX `key_index` ON api_tokens (`api_key`);
 
 	cfg, err := getConfig()
 
@@ -168,6 +168,19 @@ func main() {
 	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
+
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS api_tokens (" +
+		"`id` INT PRIMARY KEY," +
+		"`api_key` CHAR(64) NOT NULL," +
+		"`expiryTime` DATETIME NOT NULL," +
+		"`accessToken` LONGTEXT NOT NULL," +
+		"`refreshToken` LONGTEXT NOT NULL," +
+		"UNIQUE Key(`api_key`)," +
+		"UNIQUE INDEX(`api_key`)" +
+		")")
+	if err != nil {
+		panic(err)
+	}
 
 	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
 
