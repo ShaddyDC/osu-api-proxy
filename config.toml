@@ -10,12 +10,12 @@ redirect_uri = "http://localhost/authorize"
 address = ":8126"
 
 [[apiserver.endpoint]]
-handler = "/api/user/"
+handler = "/api/v1/user/"
 cache = "never"
 
-# [[apiserver.endpoint]]
-# handler = "test2"
-# cache = "always"
+[[apiserver.endpoint]]
+handler = "/api/v1/map/"
+cache = "always"
 
 [auth]
 address = ":8125"
