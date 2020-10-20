@@ -17,6 +17,7 @@ services:
     restart: always
     environment:
       API_CLIENT_SECRET: ${API_CLIENT_SECRET}
+      - ./runtime/cache:/cache
 
   web:
     image: shobble/caddy-cloudflare

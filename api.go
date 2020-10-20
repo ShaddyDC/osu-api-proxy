@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"osu-api-proxy/osuapi"
+	"strings"
+
+	"github.com/peterbourgon/diskv/v3"
 )
 
 func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
@@ -57,10 +60,42 @@ func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfi
 	delete(osuAPI.Handlers, endpoint.Handler) // Make sure each endpoint is only used once
 
 	var cacheLoader func(next osuapi.APIFunc) osuapi.APIFunc
-	if endpoint.CachePolicy == endpoint.CachePolicy { // TODO
+	if endpoint.CachePolicy == "always" {
+		isolateID := func(s string) string {
+			tokens := strings.Split(s, "/")
+			return tokens[len(tokens)-1]
+		}
+		onlyFileTransform := func(s string) *diskv.PathKey { return &diskv.PathKey{FileName: isolateID(s), Path: []string{"."}} }
+		identityTransform := func(pathKey *diskv.PathKey) string { return pathKey.FileName }
+		d := diskv.New(diskv.Options{
+			BasePath:          "/cache" + endpoint.Handler,
+			AdvancedTransform: onlyFileTransform,
+			InverseTransform:  identityTransform,
+			CacheSizeMax:      1024 * 1024,
+		})
+
 		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
 			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
-				return next(osuAPI, path, token) // Just pass through for now
+				id := isolateID(path)
+				value, err := d.Read(id)
+				if err == nil {
+					fmt.Println("Loaded from cache", path)
+					return string(value), nil
+				}
+				s, err := next(osuAPI, path, token) // Fetch from remote
+				if err == nil {
+					fmt.Println("Writing to cache", path) //TODO don't cache when json contains error
+					d.Write(id, []byte(s))
+					return s, err
+				}
+				fmt.Println("Not caching due to error", path, err, s)
+				return s, err
+			}
+		}
+	} else {
+		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
+			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
+				return next(osuAPI, path, token) // Just pass through
 			}
 		}
 	}
