@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"osu-api-proxy/osuapi"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/peterbourgon/diskv/v3"
 )
@@ -74,6 +76,9 @@ func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfi
 			CacheSizeMax:      1024 * 1024,
 		})
 
+		mut := &sync.Mutex{}
+		m := make(map[string]*sync.WaitGroup)
+
 		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
 			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
 				id := isolateID(path)
@@ -82,14 +87,42 @@ func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfi
 					fmt.Println("Loaded from cache", path)
 					return string(value), nil
 				}
-				s, err := next(osuAPI, path, token) // Fetch from remote
-				if err == nil {
-					fmt.Println("Writing to cache", path) //TODO don't cache when json contains error
-					d.Write(id, []byte(s))
-					return s, err
+
+				var wg *sync.WaitGroup
+				{
+					mut.Lock()
+					wg, exists = m[id]
+					if !exists {
+						m[id] = &sync.WaitGroup{}
+						wg = m[id]
+						wg.Add(1)
+						go func() {
+							s, err := next(osuAPI, path, token) // Fetch from remote
+							time.Sleep(5 * time.Second)
+							if err == nil {
+								fmt.Println("Writing to cache", path) //TODO don't cache when json contains error
+								d.Write(id, []byte(s))
+							} else {
+								fmt.Println("Not caching due to error", path, err, s)
+							}
+							wg.Done()
+
+							mut.Lock()
+							defer mut.Unlock()
+							delete(m, id)
+						}()
+					}
+					mut.Unlock()
 				}
-				fmt.Println("Not caching due to error", path, err, s)
-				return s, err
+				wg.Wait()
+
+				value, err = d.Read(id)
+				if err == nil {
+					fmt.Println("Loaded from cache", path)
+					return string(value), nil
+				}
+				fmt.Println("Couldn't load data", path)
+				return "", fmt.Errorf("Couldn't load data for %v", path)
 			}
 		}
 	} else {
