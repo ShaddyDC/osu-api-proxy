@@ -17,5 +17,9 @@ cache = "never"
 handler = "/api/v1/map/"
 cache = "always"
 
+[[apiserver.endpoint]]
+handler = "/api/v1/score/"
+cache = "always"
+
 [auth]
 address = ":8125"
