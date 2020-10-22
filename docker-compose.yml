@@ -17,6 +17,8 @@ services:
     restart: always
     environment:
       API_CLIENT_SECRET: ${API_CLIENT_SECRET}
+    volumes:
+      - ./config.toml:/etc/osuproxy/config.toml
       - ./runtime/cache:/cache
 
   web:
