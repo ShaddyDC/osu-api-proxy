@@ -236,6 +236,9 @@ func main() {
 
 	metricsInit()
 
+	uc, _ := getUserCount(db)
+	usersRegistered.Set(float64(uc))
+
 	setupVisitors()
 
 	// Refresh tokens now and daily

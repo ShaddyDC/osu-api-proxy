@@ -39,8 +39,8 @@ var (
 			Help: "Number of cached api requests.",
 		},
 	)
-	usersRegistered = prometheus.NewCounter(
-		prometheus.CounterOpts{
+	usersRegistered = prometheus.NewGauge(
+		prometheus.GaugeOpts{
 			Name: "users_registered",
 			Help: "Number registered users.",
 		},
