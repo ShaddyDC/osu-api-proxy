@@ -141,3 +141,9 @@ func refreshTokensRoutine(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 		time.Sleep(time.Hour * 23)
 	}
 }
+
+func getUserCount(db *sql.DB) (int, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens").Scan(&count)
+	return count, err
+}
