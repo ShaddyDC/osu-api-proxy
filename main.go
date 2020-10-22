@@ -134,6 +134,7 @@ func mainPageFunc(osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Req
 func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
 	mux := http.NewServeMux()
 
+	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("html/css"))))
 	mux.HandleFunc("/authorize", authFunc(db, osuAPI))
 	mux.HandleFunc("/", mainPageFunc(osuAPI))
 
