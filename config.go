@@ -20,16 +20,21 @@ type authServerConfig struct {
 	Address string `mapstructure:"address"`
 }
 
+type promServerConfig struct {
+	Address string `mapstructure:"address"`
+}
+
 type apiserverConfig struct {
 	Address   string           `mapstructure:"address"`
 	Endpoints []endpointConfig `mapstructure:"endpoint"`
 }
 
 type config struct {
-	Database  databaseConfig   `mapstructure:"database"`
-	APIConfig osuapi.Config    `mapstructure:"api"`
-	ApiServer apiserverConfig  `mapstructure:"apiserver"`
-	Auth      authServerConfig `mapstructure:"auth"`
+	Database   databaseConfig   `mapstructure:"database"`
+	APIConfig  osuapi.Config    `mapstructure:"api"`
+	ApiServer  apiserverConfig  `mapstructure:"apiserver"`
+	Auth       authServerConfig `mapstructure:"auth"`
+	PromServer promServerConfig `mapstructure:"prom"`
 }
 
 func getConfig() (config, error) {

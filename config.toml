@@ -23,3 +23,6 @@ cache = "always"
 
 [auth]
 address = ":8125"
+
+[prom]
+address = ":8127"

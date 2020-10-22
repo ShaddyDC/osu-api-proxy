@@ -20,12 +20,14 @@ func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFun
 			if !ipLimiter.Allow() {
 				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 				fmt.Println("Ip over rate limit", ip)
+				apiRateLimitedIP.Inc()
 				return
 			}
 
 			key := r.Header.Get("api-key")
 			if key == "" {
 				fmt.Fprintf(w, "{error:\"Invalid API key\"}")
+				apiRequestsBadAuth.Inc()
 				return
 			}
 
@@ -33,20 +35,24 @@ func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFun
 			if !apiLimiter.Allow() {
 				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
 				fmt.Println("Api key over rate limit", key)
+				apiRateLimitedKey.Inc()
 				return
 			}
 
 			token, err := keyToToken(key, db)
 			if err != nil {
 				fmt.Fprintf(w, "{error:\"Couldn't get token\"}")
+				apiRequestsBadAuth.Inc()
 				return
 			}
 
 			body, err := next(osuAPI, r.URL.Path, token)
 			if err != nil {
 				fmt.Fprintf(w, "{error:\"Error with api call: %v\"}", err)
+				apiCallFailed.Inc()
 				return
 			}
+			apiCallSuccess.Inc()
 			fmt.Fprintf(w, body)
 		}
 		return f
@@ -85,6 +91,7 @@ func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfi
 				value, err := d.Read(id)
 				if err == nil {
 					fmt.Println("Loaded from cache", path)
+					apiCallCached.Inc()
 					return string(value), nil
 				}
 

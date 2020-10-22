@@ -11,6 +11,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 
 	"osu-api-proxy/osuapi"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +82,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
+			tokensRefreshed.Inc()
 		} else {
 			fmt.Println("Generating key")
 			key, err = uniqueKey(db)
@@ -103,6 +106,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
+			usersRegistered.Inc()
 		}
 
 		data := AuthPageData{
@@ -170,6 +174,20 @@ func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup
 	wg.Done()
 }
 
+func promServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
+	mux := http.NewServeMux()
+
+	mux.Handle("/metrics", promhttp.Handler())
+
+	server := http.Server{
+		Addr:    cfg.PromServer.Address,
+		Handler: mux,
+	}
+
+	server.ListenAndServe()
+	wg.Done()
+}
+
 func main() {
 	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
 	// mysql -h127.0.0.1 -uroot -ppassword
@@ -216,6 +234,8 @@ func main() {
 
 	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
 
+	metricsInit()
+
 	setupVisitors()
 
 	// Refresh tokens now and daily
@@ -223,10 +243,11 @@ func main() {
 	go cleanupVisitorsRoutine()
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(3)
 
 	go authServer(db, &osuAPI, cfg, wg)
 	go apiServer(db, &osuAPI, cfg, wg)
+	go promServer(db, cfg, wg)
 
 	wg.Wait()
 }
