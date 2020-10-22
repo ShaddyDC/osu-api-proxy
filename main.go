@@ -22,7 +22,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 		Error string
 	}
 
-	tmplAuth := template.Must(template.ParseFiles("html/auth.html"))
+	tmplAuth := template.Must(template.ParseFiles("html/authorize.html"))
 	tmplError := template.Must(template.ParseFiles("html/error.html"))
 
 	errPage := func(w http.ResponseWriter, err string) {

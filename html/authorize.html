@@ -1,0 +1,30 @@
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osu Api Proxy &ndash; Authenticated</title>
+    <link rel="stylesheet" href="/css/sakura.css" type="text/css">
+</head>
+<body>
+    <h1>Authenticated: {{.Username}}</h1>
+    <div>
+        <label>API Key:</label>
+        <input type="text" value="{{.Key}}" id="apiKeyTextId" readonly/>
+        <button type="button" onclick="keyToClipboard();">Copy</button>
+        <script>
+            async function keyToClipboard(){
+                try {
+                    const value = document.getElementById("apiKeyTextId").value;
+                    
+                    if(!navigator.clipboard) {
+                        window.prompt("Copy to clipboard: Ctrl+C, Enter", value);
+                        return;
+                    }
+
+                    await navigator.clipboard.writeText(value);
+                } catch(error){
+                    console.error("Copy failed", error);
+                }
+            }
+        </script>
+    </div>
+</body>
