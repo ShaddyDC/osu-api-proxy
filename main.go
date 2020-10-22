@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"html"
+	"html/template"
 	"net/http"
 	"sync"
 	"time"
@@ -14,12 +14,28 @@ import (
 )
 
 func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
+	type AuthPageData struct {
+		Username string
+		Key      string
+	}
+	type ErrorPageData struct {
+		Error string
+	}
+
+	tmplAuth := template.Must(template.ParseFiles("html/auth.html"))
+	tmplError := template.Must(template.ParseFiles("html/error.html"))
+
+	errPage := func(w http.ResponseWriter, err string) {
+		data := ErrorPageData{Error: err}
+		tmplError.Execute(w, data)
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query()["code"]
 		// code := r.URL.Query()["state"]	// TODO but not high priority as afaik the worst thing that can happen is that an attacker can share their api key?
 		if len(code) != 1 || len(code[0]) == 0 {
 			fmt.Println("Got no code :(")
-			fmt.Fprintf(w, "Invalid code %q", code)
+			errPage(w, fmt.Sprintf("Invalid code: %v", code))
 			return
 		}
 
@@ -29,20 +45,20 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 		user, err := osuAPI.GetCurrentUserParsed(token.AccessToken)
 		if err != nil {
 			fmt.Println(err)
-			fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+			errPage(w, fmt.Sprintf("Error: %v", err))
 			return
 		}
 
 		if user.ID == 0 {
 			fmt.Println("User has ID 0")
-			fmt.Fprintf(w, "Error, user ID 0")
+			errPage(w, "Error, user ID 0")
 			return
 		}
 
 		exists, err := userExists(user.ID, db)
 		if err != nil {
 			fmt.Println(err)
-			fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+			errPage(w, fmt.Sprintf("Error: %v", err))
 			return
 		}
 		fmt.Println("Exists:", exists)
@@ -54,14 +70,14 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 			err = updateTokens(db, expiryTime, token.AccessToken, token.RefreshToken, user.ID)
 			if err != nil {
 				fmt.Println(err)
-				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
 			key, err = userKey(user.ID, db)
 			if err != nil {
 				fmt.Println(err)
-				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
 		} else {
@@ -69,7 +85,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 			key, err = uniqueKey(db)
 			if err != nil {
 				fmt.Println(err)
-				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
@@ -77,27 +93,41 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 			defer stmt.Close()
 			if err != nil {
 				fmt.Println(err)
-				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
 			_, err = stmt.Exec(user.ID, key, expiryTime, token.AccessToken, token.RefreshToken)
 			if err != nil {
 				fmt.Println(err)
-				fmt.Fprintf(w, "Error %q", html.EscapeString(err.Error()))
+				errPage(w, fmt.Sprintf("Error: %v", err))
 				return
 			}
 		}
 
-		fmt.Fprintf(w, "Hello, %q <br>\n", html.EscapeString(user.Username))
-		fmt.Fprintf(w, "Remember your api key %q!", key)
+		data := AuthPageData{
+			Username: user.Username,
+			Key:      key,
+		}
+
+		tmplAuth.Execute(w, data)
 	}
 }
 func mainPageFunc(osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
+	type IndexPageData struct {
+		OsuAuthURL string
+	}
+
+	tmpl := template.Must(template.ParseFiles("html/index.html"))
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		osuURL, _ := osuAPI.OsuRequestAuthURL()
-		fmt.Fprintf(w, "Hello, %q<br> <a href=%q>go here</a>", html.EscapeString(r.URL.String()), osuURL)
+
+		data := &IndexPageData{
+			OsuAuthURL: osuURL,
+		}
+
+		tmpl.Execute(w, data)
 	}
 }
 
