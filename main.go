@@ -16,10 +16,11 @@ import (
 	"github.com/rs/cors"
 )
 
-func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
+func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.ResponseWriter, r *http.Request) {
 	type AuthPageData struct {
-		Username string
-		Key      string
+		Username  string
+		Key       string
+		AppKeyURL string
 	}
 	type ErrorPageData struct {
 		Error string
@@ -111,8 +112,9 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *
 		}
 
 		data := AuthPageData{
-			Username: user.Username,
-			Key:      key,
+			Username:  user.Username,
+			Key:       key,
+			AppKeyURL: cfg.App.AppKeyURL,
 		}
 
 		tmplAuth.Execute(w, data)
@@ -140,7 +142,7 @@ func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGrou
 	mux := http.NewServeMux()
 
 	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("html/css"))))
-	mux.HandleFunc("/authorize", authFunc(db, osuAPI))
+	mux.HandleFunc("/authorize", authFunc(db, osuAPI, cfg))
 	mux.HandleFunc("/", mainPageFunc(osuAPI))
 
 	server := http.Server{

@@ -28,3 +28,6 @@ address = ":8125"
 
 [prom]
 address = ":8127"
+
+[application]
+api_key_update_url = "http://localhost:8000/?app-apikey="

@@ -10,6 +10,8 @@
         <label>API Key:</label>
         <input type="text" value="{{.Key}}" id="apiKeyTextId" readonly/>
         <button type="button" onclick="keyToClipboard();">Copy</button>
+        <button type="button" onclick="window.location.href='{{.AppKeyURL}}{{.Key}}'">Load in Application</button>
+
         <script>
             async function keyToClipboard(){
                 try {

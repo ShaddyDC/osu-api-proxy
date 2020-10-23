@@ -30,12 +30,17 @@ type apiserverConfig struct {
 	Endpoints      []endpointConfig `mapstructure:"endpoint"`
 }
 
+type appConfig struct {
+	AppKeyURL string `mapstructure:"api_key_update_url"`
+}
+
 type config struct {
 	Database   databaseConfig   `mapstructure:"database"`
 	APIConfig  osuapi.Config    `mapstructure:"api"`
 	ApiServer  apiserverConfig  `mapstructure:"apiserver"`
 	Auth       authServerConfig `mapstructure:"auth"`
 	PromServer promServerConfig `mapstructure:"prom"`
+	App        appConfig        `mapstructure:"application"`
 }
 
 func getConfig() (config, error) {
