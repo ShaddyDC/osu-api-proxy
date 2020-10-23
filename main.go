@@ -13,6 +13,7 @@ import (
 	"osu-api-proxy/osuapi"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/cors"
 )
 
 func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
@@ -165,9 +166,13 @@ func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup
 		fmt.Printf("Handling api %s with cache policy %s\n", endpoint.Handler, endpoint.CachePolicy)
 	}
 
+	handler := cors.New(cors.Options{
+		AllowedOrigins: cfg.ApiServer.AllowedOrigins,
+	}).Handler(mux)
+
 	server := http.Server{
 		Addr:    cfg.ApiServer.Address,
-		Handler: mux,
+		Handler: handler,
 	}
 
 	server.ListenAndServe()

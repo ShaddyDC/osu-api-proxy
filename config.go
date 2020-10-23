@@ -25,8 +25,9 @@ type promServerConfig struct {
 }
 
 type apiserverConfig struct {
-	Address   string           `mapstructure:"address"`
-	Endpoints []endpointConfig `mapstructure:"endpoint"`
+	Address        string           `mapstructure:"address"`
+	AllowedOrigins []string         `mapstructure:"allowed_origins"`
+	Endpoints      []endpointConfig `mapstructure:"endpoint"`
 }
 
 type config struct {

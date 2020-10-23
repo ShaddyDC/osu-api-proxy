@@ -8,6 +8,7 @@ redirect_uri = "http://localhost/authorize"
 
 [apiserver]
 address = ":8126"
+allowed_origins = [ "http://localhost" ]
 
 [[apiserver.endpoint]]
 handler = "/api/v1/user/"
