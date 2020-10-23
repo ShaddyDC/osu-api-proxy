@@ -8,7 +8,8 @@ redirect_uri = "http://localhost/authorize"
 
 [apiserver]
 address = ":8126"
-allowed_origins = [ "http://localhost" ]
+# Note that the reverse proxy config has to be adapted too
+allowed_origins = [ "http://localhost", "http://localhost:8000" ]
 
 [[apiserver.endpoint]]
 handler = "/api/v1/user/"
