@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	_ "github.com/go-sql-driver/mysql"
 
 	"osu-api-proxy/osuapi"
@@ -35,6 +37,18 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.Respons
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		interval := rate.Every(10 * time.Minute)
+		limiter := rate.NewLimiter(interval, 1)
+
+		ip := getIP(r)
+		ipLimiter := getVisitorWithLimiter(authVisitors, ip, limiter)
+		if !ipLimiter.Allow() {
+			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			fmt.Println("Ip over rate limit", ip)
+			apiRateLimitedIP.Inc()
+			return
+		}
+
 		code := r.URL.Query()["code"]
 		// code := r.URL.Query()["state"]	// TODO but not high priority as afaik the worst thing that can happen is that an attacker can share their api key?
 		if len(code) != 1 || len(code[0]) == 0 {

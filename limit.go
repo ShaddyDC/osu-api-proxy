@@ -22,14 +22,18 @@ type visitors struct {
 
 var apiVisitors = &visitors{}
 var ipVisitors = &visitors{}
+var authVisitors = &visitors{}
 
 func getVisitor(vs *visitors, key string) *rate.Limiter {
+	return getVisitorWithLimiter(vs, key, rate.NewLimiter(2, 1))
+}
+
+func getVisitorWithLimiter(vs *visitors, key string, limiter *rate.Limiter) *rate.Limiter {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 
 	v, exists := vs.visitors[key]
 	if !exists {
-		limiter := rate.NewLimiter(2, 1)
 		vs.visitors[key] = &visitor{limiter, time.Now()}
 		return limiter
 	}
@@ -40,6 +44,7 @@ func getVisitor(vs *visitors, key string) *rate.Limiter {
 func setupVisitors() {
 	apiVisitors.visitors = make(map[string]*visitor)
 	ipVisitors.visitors = make(map[string]*visitor)
+	authVisitors.visitors = make(map[string]*visitor)
 }
 
 func cleanupVisitors(vs *visitors) {
@@ -58,6 +63,7 @@ func cleanupVisitorsRoutine() {
 
 		cleanupVisitors(apiVisitors)
 		cleanupVisitors(ipVisitors)
+		cleanupVisitors(authVisitors)
 	}
 }
 
