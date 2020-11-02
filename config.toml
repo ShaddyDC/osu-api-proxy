@@ -12,15 +12,15 @@ address = ":8126"
 allowed_origins = [ "http://localhost", "http://localhost:8000" ]
 
 [[apiserver.endpoint]]
-handler = "/api/v1/user/"
+handler = "userinfo"
 cache = "never"
 
 [[apiserver.endpoint]]
-handler = "/api/v1/map/"
+handler = "osufile"
 cache = "always"
 
 [[apiserver.endpoint]]
-handler = "/api/v1/score/"
+handler = "scorefile"
 cache = "always"
 
 [auth]

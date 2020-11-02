@@ -1,13 +1,81 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
+
+func apiLimitIP() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := getIP(c)
+		ipLimiter := getVisitor(ipVisitors, ip)
+
+		if !ipLimiter.Allow() {
+			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			fmt.Println("Ip over rate limit", ip)
+			apiRateLimitedIP.Inc()
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func apiLimitKey() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := getIP(c)
+		ipLimiter := getVisitor(ipVisitors, ip)
+
+		if !ipLimiter.Allow() {
+			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			fmt.Println("Ip over rate limit", ip)
+			apiRateLimitedIP.Inc()
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func apiLclLimit(limit rate.Limit) gin.HandlerFunc {
+	limiter := rate.NewLimiter(limit, 1)
+
+	return func(c *gin.Context) {
+		if !limiter.Allow() {
+			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func apiRmtLimit(limit rate.Limit) gin.HandlerFunc {
+	limiter := rate.NewLimiter(limit, 1)
+
+	return func(c *gin.Context) {
+		if !limiter.Allow() {
+			c.String(http.StatusOK, "Server rate limited :(")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func apiNoLimit() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+	}
+}
 
 // Stolen from here https://www.alexedwards.net/blog/how-to-rate-limit-http-requests
 type visitor struct {
@@ -67,8 +135,8 @@ func cleanupVisitorsRoutine() {
 	}
 }
 
-func getIP(r *http.Request) string {
-	forwarded := r.Header.Get("X-Forwarded-For")
+func getIP(c *gin.Context) string {
+	forwarded := c.GetHeader("X-Forwarded-For")
 	ips := strings.Split(forwarded, ",")
 	return ips[len(ips)-1]
 }

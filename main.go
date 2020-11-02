@@ -3,80 +3,67 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"html/template"
 	"net/http"
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
-
+	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/time/rate"
 
 	"osu-api-proxy/osuapi"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/cors"
 )
 
-func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.ResponseWriter, r *http.Request) {
-	type AuthPageData struct {
-		Username  string
-		Key       string
-		AppKeyURL string
-	}
-	type ErrorPageData struct {
-		Error string
+func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) gin.HandlerFunc {
+	errPage := func(c *gin.Context, err string) {
+		c.HTML(200, "error.tmpl", gin.H{
+			"Error": err,
+		})
 	}
 
-	tmplAuth := template.Must(template.ParseFiles("html/authorize.html"))
-	tmplError := template.Must(template.ParseFiles("html/error.html"))
-
-	errPage := func(w http.ResponseWriter, err string) {
-		data := ErrorPageData{Error: err}
-		tmplError.Execute(w, data)
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(c *gin.Context) {
 		interval := rate.Every(10 * time.Minute)
 		limiter := rate.NewLimiter(interval, 1)
 
-		ip := getIP(r)
+		ip := getIP(c)
 		ipLimiter := getVisitorWithLimiter(authVisitors, ip, limiter)
 		if !ipLimiter.Allow() {
-			http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
+			c.String(http.StatusTooManyRequests, http.StatusText(429))
 			fmt.Println("Ip over rate limit", ip)
 			apiRateLimitedIP.Inc()
 			return
 		}
 
-		code := r.URL.Query()["code"]
+		code := c.Query("code")
 		// code := r.URL.Query()["state"]	// TODO but not high priority as afaik the worst thing that can happen is that an attacker can share their api key?
-		if len(code) != 1 || len(code[0]) == 0 {
+		if len(code) == 0 {
 			fmt.Println("Got no code :(")
-			errPage(w, fmt.Sprintf("Invalid code: %v", code))
+			errPage(c, fmt.Sprintf("Invalid code: %v", code))
 			return
 		}
 
-		token, err := osuAPI.GetToken(code[0])
+		token, err := osuAPI.GetToken(code)
 		expiryTime := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second) // TODO Move to getToken
 
 		user, err := osuAPI.GetCurrentUserParsed(token.AccessToken)
 		if err != nil {
 			fmt.Println(err)
-			errPage(w, fmt.Sprintf("Error: %v", err))
+			errPage(c, fmt.Sprintf("Error: %v", err))
 			return
 		}
 
 		if user.ID == 0 {
 			fmt.Println("User has ID 0")
-			errPage(w, "Error, user ID 0")
+			errPage(c, "Error, user ID 0")
 			return
 		}
 
 		exists, err := userExists(user.ID, db)
 		if err != nil {
 			fmt.Println(err)
-			errPage(w, fmt.Sprintf("Error: %v", err))
+			errPage(c, fmt.Sprintf("Error: %v", err))
 			return
 		}
 		fmt.Println("Exists:", exists)
@@ -88,14 +75,14 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.Respons
 			err = updateTokens(db, expiryTime, token.AccessToken, token.RefreshToken, user.ID)
 			if err != nil {
 				fmt.Println(err)
-				errPage(w, fmt.Sprintf("Error: %v", err))
+				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
 			key, err = userKey(user.ID, db)
 			if err != nil {
 				fmt.Println(err)
-				errPage(w, fmt.Sprintf("Error: %v", err))
+				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
 			tokensRefreshed.Inc()
@@ -104,7 +91,7 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.Respons
 			key, err = uniqueKey(db)
 			if err != nil {
 				fmt.Println(err)
-				errPage(w, fmt.Sprintf("Error: %v", err))
+				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
@@ -112,86 +99,45 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) func(w http.Respons
 			defer stmt.Close()
 			if err != nil {
 				fmt.Println(err)
-				errPage(w, fmt.Sprintf("Error: %v", err))
+				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
 
 			_, err = stmt.Exec(user.ID, key, expiryTime, token.AccessToken, token.RefreshToken)
 			if err != nil {
 				fmt.Println(err)
-				errPage(w, fmt.Sprintf("Error: %v", err))
+				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
 			usersRegistered.Inc()
 		}
 
-		data := AuthPageData{
-			Username:  user.Username,
-			Key:       key,
-			AppKeyURL: cfg.App.AppKeyURL,
-		}
-
-		tmplAuth.Execute(w, data)
+		c.HTML(http.StatusOK, "authorize.tmpl", gin.H{
+			"Username":  user.Username,
+			"Key":       key,
+			"AppKeyURL": cfg.App.AppKeyURL,
+		})
 	}
 }
-func mainPageFunc(osuAPI *osuapi.OsuAPI) func(w http.ResponseWriter, r *http.Request) {
-	type IndexPageData struct {
-		OsuAuthURL string
-	}
-
-	tmpl := template.Must(template.ParseFiles("html/index.html"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
+func mainPageFunc(osuAPI *osuapi.OsuAPI) gin.HandlerFunc {
+	return func(c *gin.Context) {
 		osuURL, _ := osuAPI.OsuRequestAuthURL()
 
-		data := &IndexPageData{
-			OsuAuthURL: osuURL,
-		}
-
-		tmpl.Execute(w, data)
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"OsuAuthURL": osuURL,
+		})
 	}
 }
 
 func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
-	mux := http.NewServeMux()
+	router := gin.Default()
+	router.LoadHTMLGlob("html/templates/*")
 
-	mux.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("html/css"))))
-	mux.HandleFunc("/authorize", authFunc(db, osuAPI, cfg))
-	mux.HandleFunc("/", mainPageFunc(osuAPI))
+	router.Static("/css/", "html/css")
+	router.GET("/authorize", authFunc(db, osuAPI, cfg))
+	router.GET("/", mainPageFunc(osuAPI))
 
-	server := http.Server{
-		Addr:    cfg.Auth.Address,
-		Handler: mux,
-	}
-
-	server.ListenAndServe()
-	wg.Done()
-}
-
-func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
-	mux := http.NewServeMux()
-
-	prepareRequest := handleAPIRequest(db, osuAPI)
-
-	for _, endpoint := range cfg.ApiServer.Endpoints {
-		apiCall, err := createAPIHandler(db, osuAPI, &endpoint)
-		if err != nil {
-			panic(err.Error())
-		}
-		mux.HandleFunc(endpoint.Handler, prepareRequest(apiCall))
-		fmt.Printf("Handling api %s with cache policy %s\n", endpoint.Handler, endpoint.CachePolicy)
-	}
-
-	handler := cors.New(cors.Options{
-		AllowedOrigins: cfg.ApiServer.AllowedOrigins,
-	}).Handler(mux)
-
-	server := http.Server{
-		Addr:    cfg.ApiServer.Address,
-		Handler: handler,
-	}
-
-	server.ListenAndServe()
+	router.Run(cfg.Auth.Address)
 	wg.Done()
 }
 

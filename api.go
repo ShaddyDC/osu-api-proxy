@@ -3,142 +3,152 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"osu-api-proxy/osuapi"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/peterbourgon/diskv/v3"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
-func handleAPIRequest(db *sql.DB, osuAPI *osuapi.OsuAPI) func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
-	return func(next osuapi.APIFunc) func(w http.ResponseWriter, r *http.Request) {
-		f := func(w http.ResponseWriter, r *http.Request) {
-			ip := getIP(r)
-			ipLimiter := getVisitor(ipVisitors, ip)
-			if !ipLimiter.Allow() {
-				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
-				fmt.Println("Ip over rate limit", ip)
-				apiRateLimitedIP.Inc()
-				return
-			}
-
-			key := r.Header.Get("api-key")
-			if key == "" {
-				fmt.Fprintf(w, "{error:\"Invalid API key\"}")
-				apiRequestsBadAuth.Inc()
-				return
-			}
-
-			apiLimiter := getVisitor(apiVisitors, key)
-			if !apiLimiter.Allow() {
-				http.Error(w, http.StatusText(429), http.StatusTooManyRequests)
-				fmt.Println("Api key over rate limit", key)
-				apiRateLimitedKey.Inc()
-				return
-			}
-
-			token, err := keyToToken(key, db)
-			if err != nil {
-				fmt.Fprintf(w, "{error:\"Couldn't get token\"}")
-				apiRequestsBadAuth.Inc()
-				return
-			}
-
-			body, err := next(osuAPI, r.URL.Path, token)
-			if err != nil {
-				fmt.Fprintf(w, "{error:\"Error with api call: %v\"}", err)
-				apiCallFailed.Inc()
-				return
-			}
-			apiCallSuccess.Inc()
-			fmt.Fprintf(w, body)
+func apiAuth(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		apiKey := c.GetHeader("api-key")
+		if apiKey == "" {
+			c.String(http.StatusUnauthorized, "api key required")
+			apiRequestsBadAuth.Inc()
+			c.Abort()
+			return
 		}
-		return f
+
+		apiLimiter := getVisitor(apiVisitors, apiKey)
+		if !apiLimiter.Allow() {
+			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			fmt.Println("Api key over rate limit", apiKey)
+			apiRateLimitedKey.Inc()
+			c.Abort()
+			return
+		}
+
+		token, err := keyToToken(apiKey, db)
+		if err != nil {
+			c.String(http.StatusUnauthorized, "Couldn't get token")
+			apiRequestsBadAuth.Inc()
+			c.Abort()
+			return
+		}
+
+		c.Set("token", token)
+
+		c.Next()
 	}
 }
 
-func createAPIHandler(db *sql.DB, osuAPI *osuapi.OsuAPI, endpoint *endpointConfig) (osuapi.APIFunc, error) {
-	apiCall, exists := osuAPI.Handlers[endpoint.Handler]
-	if !exists {
-		fmt.Println(osuAPI.Handlers)
-		return nil, fmt.Errorf("API handler %v not found or already defined", endpoint.Handler)
-	}
-	delete(osuAPI.Handlers, endpoint.Handler) // Make sure each endpoint is only used once
+func rmtAPIRequest(url string, token string) (string, error) {
+	// if !notRateLimited() {
+	// 	return nil, fmt.Errorf("Server rate limited")
+	// }
 
-	var cacheLoader func(next osuapi.APIFunc) osuapi.APIFunc
-	if endpoint.CachePolicy == "always" {
-		isolateID := func(s string) string {
-			tokens := strings.Split(s, "/")
-			return tokens[len(tokens)-1]
-		}
-		onlyFileTransform := func(s string) *diskv.PathKey { return &diskv.PathKey{FileName: isolateID(s), Path: []string{"."}} }
-		identityTransform := func(pathKey *diskv.PathKey) string { return pathKey.FileName }
-		d := diskv.New(diskv.Options{
-			BasePath:          "/cache" + endpoint.Handler,
-			AdvancedTransform: onlyFileTransform,
-			InverseTransform:  identityTransform,
-			CacheSizeMax:      1024 * 1024,
-		})
-
-		mut := &sync.Mutex{}
-		m := make(map[string]*sync.WaitGroup)
-
-		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
-			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
-				id := isolateID(path)
-				value, err := d.Read(id)
-				if err == nil {
-					fmt.Println("Loaded from cache", path)
-					apiCallCached.Inc()
-					return string(value), nil
-				}
-
-				var wg *sync.WaitGroup
-				{
-					mut.Lock()
-					wg, exists = m[id]
-					if !exists {
-						m[id] = &sync.WaitGroup{}
-						wg = m[id]
-						wg.Add(1)
-						go func() {
-							s, err := next(osuAPI, path, token) // Fetch from remote
-							time.Sleep(5 * time.Second)
-							if err == nil {
-								fmt.Println("Writing to cache", path) //TODO don't cache when json contains error
-								d.Write(id, []byte(s))
-							} else {
-								fmt.Println("Not caching due to error", path, err, s)
-							}
-							wg.Done()
-
-							mut.Lock()
-							defer mut.Unlock()
-							delete(m, id)
-						}()
-					}
-					mut.Unlock()
-				}
-				wg.Wait()
-
-				value, err = d.Read(id)
-				if err == nil {
-					fmt.Println("Loaded from cache", path)
-					return string(value), nil
-				}
-				fmt.Println("Couldn't load data", path)
-				return "", fmt.Errorf("Couldn't load data for %v", path)
-			}
-		}
-	} else {
-		cacheLoader = func(next osuapi.APIFunc) osuapi.APIFunc {
-			return func(osuAPI *osuapi.OsuAPI, path string, token string) (string, error) {
-				return next(osuAPI, path, token) // Just pass through
-			}
-		}
+	fmt.Println("Fetching remote", url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("Couldn't create request. %v", err)
 	}
 
-	return cacheLoader(apiCall), nil
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("Couldn't execute request with client. %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("Error reading request. %v", err)
+	}
+
+	return string(body), nil
+}
+
+func apiHandler(handler rmtHandler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenInterface, exists := c.Get("token")
+		if !exists {
+			c.String(http.StatusOK, "Internal error retrieving token")
+			return
+		}
+
+		token, ok := tokenInterface.(string)
+		if !ok {
+			c.String(http.StatusOK, "Internal error with token type????")
+			return
+		}
+
+		url := "https://osu.ppy.sh" + handler.rmtURL(c)
+
+		val, err := rmtAPIRequest(url, token)
+		if err == nil {
+			c.Set("value", val)
+			c.String(http.StatusOK, val)
+			return
+		}
+		c.String(http.StatusOK, err.Error())
+	}
+}
+
+func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
+	router := gin.Default()
+
+	// authentication and local api-wide rate limits
+	router.Use(cors.New(cors.Config{
+		AllowOrigins: cfg.ApiServer.AllowedOrigins,
+		AllowHeaders: []string{"api-key"},
+	}))
+
+	router.Use(apiLimitIP())
+	router.Use(apiAuth(db))
+
+	// Remote api total aggregate rate limits
+	globalRmtLimitHandler := apiRmtLimit(10)
+
+	handlers := handlersMap()
+	for _, handlerCFG := range cfg.ApiServer.Endpoints {
+		handler, exists := handlers[handlerCFG.Handler]
+		if !exists {
+			panic(fmt.Sprint("Endpoint does not exist", handlerCFG.Handler))
+		}
+
+		// Cache stuff maybe
+		var cacheHandler gin.HandlerFunc
+		if handlerCFG.CachePolicy == "always" {
+			cacheHandler = apiCache(handler)
+		} else {
+			cacheHandler = apiCacheNoCache()
+		}
+
+		// Local endpoint specific rate limits
+		var lclLimitHandler gin.HandlerFunc
+		lclLimitHandler = apiNoLimit()
+
+		// Remote endpoint specific rate limits
+		var rmtLimitHandler gin.HandlerFunc
+		if handler.rmtLimit != nil {
+			rmtLimitHandler = apiRmtLimit(*handler.rmtLimit)
+		} else {
+			rmtLimitHandler = apiNoLimit()
+		}
+
+		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lklEndpoint)
+		router.GET(handler.lklEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+	}
+
+	router.Run(cfg.ApiServer.Address)
+
+	wg.Done()
 }
