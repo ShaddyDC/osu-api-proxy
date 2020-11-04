@@ -9,7 +9,7 @@ import (
 
 type rmtHandler struct {
 	name        string
-	lklEndpoint string
+	lclEndpoint string
 	rmtURL      func(c *gin.Context) string
 	rmtLimit    *rate.Limit
 }
@@ -18,21 +18,21 @@ var (
 	rmtHandlers = []rmtHandler{
 		{
 			name:        "osufile",
-			lklEndpoint: "/api/v1/osufile/:id",
+			lclEndpoint: "/api/v1/osufile/:id",
 			rmtURL: func(c *gin.Context) string {
 				return "/osu/" + c.Param("id")
 			},
 		},
 		{
 			name:        "userinfo",
-			lklEndpoint: "/api/v1/users/:user/:mode",
+			lclEndpoint: "/api/v1/users/:user/:mode",
 			rmtURL: func(c *gin.Context) string {
 				return "/api/v2/users/" + c.Param("user") + "/" + c.Param("mode")
 			},
 		},
 		{
 			name:        "scorefile",
-			lklEndpoint: "/api/v1/scores/:mode/:score",
+			lclEndpoint: "/api/v1/scores/:mode/:score",
 			rmtURL: func(c *gin.Context) string {
 				return "/api/v2/scores/" + c.Param("mode") + "/" + c.Param("score") + "/download"
 			},

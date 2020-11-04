@@ -143,8 +143,8 @@ func apiServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 			rmtLimitHandler = apiNoLimit()
 		}
 
-		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lklEndpoint)
-		router.GET(handler.lklEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lclEndpoint)
+		router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
 	}
 
 	router.Run(cfg.APIServer.Address)
