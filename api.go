@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"osu-api-proxy/osuapi"
 	"sync"
 
 	"github.com/gin-contrib/cors"
@@ -102,12 +101,12 @@ func apiHandler(handler rmtHandler) gin.HandlerFunc {
 	}
 }
 
-func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
+func apiServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 	router := gin.Default()
 
 	// authentication and local api-wide rate limits
 	router.Use(cors.New(cors.Config{
-		AllowOrigins: cfg.ApiServer.AllowedOrigins,
+		AllowOrigins: cfg.APIServer.AllowedOrigins,
 		AllowHeaders: []string{"api-key"},
 	}))
 
@@ -118,7 +117,7 @@ func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup
 	globalRmtLimitHandler := apiRmtLimit(10)
 
 	handlers := handlersMap()
-	for _, handlerCFG := range cfg.ApiServer.Endpoints {
+	for _, handlerCFG := range cfg.APIServer.Endpoints {
 		handler, exists := handlers[handlerCFG.Handler]
 		if !exists {
 			panic(fmt.Sprint("Endpoint does not exist", handlerCFG.Handler))
@@ -148,7 +147,7 @@ func apiServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup
 		router.GET(handler.lklEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
 	}
 
-	router.Run(cfg.ApiServer.Address)
+	router.Run(cfg.APIServer.Address)
 
 	wg.Done()
 }

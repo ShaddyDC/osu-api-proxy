@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
-	"osu-api-proxy/osuapi"
 	"sync"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) gin.HandlerFunc {
+func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 	errPage := func(c *gin.Context, err string) {
 		c.HTML(200, "error.tmpl", gin.H{
 			"Error": err,
@@ -40,10 +39,10 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) gin.HandlerFunc {
 			return
 		}
 
-		token, err := osuAPI.GetToken(code)
+		token, err := getNewToken(&cfg.APIConfig, code)
 		expiryTime := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second) // TODO Move to getToken
 
-		user, err := osuAPI.GetCurrentUserParsed(token.AccessToken)
+		user, err := getCurrentUser(token.AccessToken)
 		if err != nil {
 			fmt.Println(err)
 			errPage(c, fmt.Sprintf("Error: %v", err))
@@ -116,13 +115,26 @@ func authFunc(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config) gin.HandlerFunc {
 	}
 }
 
-func authServer(db *sql.DB, osuAPI *osuapi.OsuAPI, cfg config, wg *sync.WaitGroup) {
+func mainPageFunc(cfg *osuAPIConfig) gin.HandlerFunc {
+	url, err := osuRequestAuthURL(cfg)
+	if err != nil {
+		panic("Couldn't create auth url")
+	}
+
+	return func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"OsuAuthURL": url,
+		})
+	}
+}
+
+func authServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 	router := gin.Default()
 	router.LoadHTMLGlob("html/templates/*")
 
 	router.Static("/css/", "html/css")
-	router.GET("/authorize", authFunc(db, osuAPI, cfg))
-	router.GET("/", mainPageFunc(osuAPI))
+	router.GET("/authorize", authFunc(db, cfg))
+	router.GET("/", mainPageFunc(&cfg.APIConfig))
 
 	router.Run(cfg.Auth.Address)
 	wg.Done()

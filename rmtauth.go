@@ -1,10 +1,12 @@
-package osuapi
+package main
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -25,8 +27,6 @@ type refreshPost struct {
 	Scope        string `json:"scope"`
 }
 
-type anyPost interface{}
-
 // TokenResult contains user authentication stuff
 type TokenResult struct {
 	TokenType    string `json:"token_type"`
@@ -36,16 +36,15 @@ type TokenResult struct {
 	Error        string `json:"error"`
 }
 
-// OsuRequestAuthURL returns the url users should be redirected to to init authentication
-func (osuAPI *OsuAPI) OsuRequestAuthURL() (string, error) {
+func osuRequestAuthURL(cfg *osuAPIConfig) (string, error) {
 	base, err := url.Parse("https://osu.ppy.sh/oauth/authorize")
 	if err != nil {
 		return "", err
 	}
 
 	params := url.Values{}
-	params.Add("client_id", strconv.Itoa(osuAPI.config.ClientID))
-	params.Add("redirect_uri", osuAPI.config.RedirectURI)
+	params.Add("client_id", strconv.Itoa(cfg.ClientID))
+	params.Add("redirect_uri", cfg.RedirectURI)
 	params.Add("response_type", "code")
 	params.Add("scope", "public")
 	params.Add("state", "")
@@ -55,7 +54,7 @@ func (osuAPI *OsuAPI) OsuRequestAuthURL() (string, error) {
 	return base.String(), nil
 }
 
-func getToken(code anyPost) (*TokenResult, error) {
+func getTokenImpl(code interface{}) (*TokenResult, error) {
 	buf, err := json.Marshal(code)
 	if err != nil {
 		return nil, fmt.Errorf("Error JSONifying object %v. %v", code, err)
@@ -89,35 +88,51 @@ func getToken(code anyPost) (*TokenResult, error) {
 	return &token, nil
 }
 
-// GetToken converts a given code into a token
-func (osuAPI *OsuAPI) GetToken(code string) (*TokenResult, error) {
+func postRequestWithBody(url string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't create request. %v", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return resp, fmt.Errorf("Couldn't execute request with client. %v", err)
+	}
+
+	return resp, nil
+}
+
+func getNewToken(cfg *osuAPIConfig, code string) (*TokenResult, error) {
 	if len(code) <= 5 {
 		return nil, fmt.Errorf("Code too short! " + code)
 	}
 
 	tokenPost := &tokenPost{
-		ClientID:     osuAPI.config.ClientID,
-		ClientSecret: osuAPI.config.ClientSecret,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 		Code:         code,
 		GrantType:    "authorization_code",
-		RedirectURI:  osuAPI.config.RedirectURI}
+		RedirectURI:  cfg.RedirectURI}
 
-	return getToken(tokenPost)
+	return getTokenImpl(tokenPost)
 }
 
-// RefreshToken turns a refresh token into a new set of tokens
-func (osuAPI *OsuAPI) RefreshToken(token string) (*TokenResult, error) {
+func refreshToken(cfg *osuAPIConfig, token string) (*TokenResult, error) {
 	if len(token) <= 5 {
 		return nil, fmt.Errorf("Token too short! " + token)
 	}
 	// https://laravel.com/docs/master/passport#refreshing-tokens
 
 	refreshPost := &refreshPost{
-		ClientID:     osuAPI.config.ClientID,
-		ClientSecret: osuAPI.config.ClientSecret,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 		GrantType:    "refresh_token",
 		Scope:        "public",
 		RefreshToken: token}
 
-	return getToken(refreshPost)
+	return getTokenImpl(refreshPost)
 }

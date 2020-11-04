@@ -1,7 +1,6 @@
 package main
 
 import (
-	"osu-api-proxy/osuapi"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -34,10 +33,16 @@ type appConfig struct {
 	AppKeyURL string `mapstructure:"api_key_update_url"`
 }
 
+type osuAPIConfig struct {
+	ClientID     int    `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURI  string `mapstructure:"redirect_uri"`
+}
+
 type config struct {
 	Database   databaseConfig   `mapstructure:"database"`
-	APIConfig  osuapi.Config    `mapstructure:"api"`
-	ApiServer  apiserverConfig  `mapstructure:"apiserver"`
+	APIConfig  osuAPIConfig     `mapstructure:"api"`
+	APIServer  apiserverConfig  `mapstructure:"apiserver"`
 	Auth       authServerConfig `mapstructure:"auth"`
 	PromServer promServerConfig `mapstructure:"prom"`
 	App        appConfig        `mapstructure:"application"`

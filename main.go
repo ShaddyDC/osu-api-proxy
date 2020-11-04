@@ -7,23 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
-
-	"osu-api-proxy/osuapi"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
-
-func mainPageFunc(osuAPI *osuapi.OsuAPI) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		osuURL, _ := osuAPI.OsuRequestAuthURL()
-
-		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"OsuAuthURL": osuURL,
-		})
-	}
-}
 
 func promServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 	mux := http.NewServeMux()
@@ -83,8 +70,6 @@ func main() {
 		panic(err)
 	}
 
-	osuAPI := osuapi.NewOsuAPI(cfg.APIConfig)
-
 	metricsInit()
 
 	uc, _ := getUserCount(db)
@@ -93,14 +78,14 @@ func main() {
 	setupVisitors()
 
 	// Refresh tokens now and daily
-	go refreshTokensRoutine(db, &osuAPI)
+	go refreshTokensRoutine(db, &cfg.APIConfig)
 	go cleanupVisitorsRoutine()
 
 	wg := new(sync.WaitGroup)
 	wg.Add(3)
 
-	go authServer(db, &osuAPI, cfg, wg)
-	go apiServer(db, &osuAPI, cfg, wg)
+	go authServer(db, cfg, wg)
+	go apiServer(db, cfg, wg)
 	go promServer(db, cfg, wg)
 
 	wg.Wait()

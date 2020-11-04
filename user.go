@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"osu-api-proxy/osuapi"
 	"time"
 )
 
@@ -104,7 +103,7 @@ func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshT
 	return nil
 }
 
-func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
+func refreshTokens(db *sql.DB, cfg *osuAPIConfig) {
 	fmt.Println("Refreshing tokens...")
 	rows, err := db.Query("SELECT id, refreshToken FROM api_tokens")
 	defer rows.Close()
@@ -123,7 +122,7 @@ func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 			continue
 		}
 
-		token, err := osuAPI.RefreshToken(refreshTokens)
+		token, err := refreshToken(cfg, refreshTokens)
 		if err != nil {
 			fmt.Println("Error refreshing token", err)
 			continue
@@ -135,9 +134,9 @@ func refreshTokens(db *sql.DB, osuAPI *osuapi.OsuAPI) {
 	}
 }
 
-func refreshTokensRoutine(db *sql.DB, osuAPI *osuapi.OsuAPI) {
+func refreshTokensRoutine(db *sql.DB, cfg *osuAPIConfig) {
 	for {
-		go refreshTokens(db, osuAPI)
+		go refreshTokens(db, cfg)
 		time.Sleep(time.Hour * 23)
 	}
 }
