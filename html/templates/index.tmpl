@@ -6,10 +6,16 @@
 </head>
 <body>
     <h1>Hello!</h1>
+    {{ if .EnableAuth }}
     <div>
         To authenticate and get your api key, click the button. 
         You will be redirected to the osu site, where you have to give us access to the api with your account.
         Then you will be redirected back to us, and you will get your key.
     </div>
     <button type="button" onclick="window.location.href='{{.OsuAuthURL}}'">Authenticate</value>
+    {{ else }}
+    <div>
+        Registration is currently disabled.
+    </div>
+    {{ end }}
 </body>

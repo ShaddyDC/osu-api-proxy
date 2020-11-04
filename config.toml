@@ -25,6 +25,7 @@ cache = "always"
 
 [auth]
 address = ":8125"
+enable_auth = true
 
 [prom]
 address = ":8127"

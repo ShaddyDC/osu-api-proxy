@@ -31,6 +31,14 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 			return
 		}
 
+		if !cfg.Auth.EnableAuth {
+			c.HTML(http.StatusOK, "index.tmpl", gin.H{
+				"OsuAuthURL": "",
+				"EnableAuth": cfg.Auth.EnableAuth,
+			})
+			return
+		}
+
 		code := c.Query("code")
 		// code := r.URL.Query()["state"]	// TODO but not high priority as afaik the worst thing that can happen is that an attacker can share their api key?
 		if len(code) == 0 {
@@ -115,8 +123,8 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 	}
 }
 
-func mainPageFunc(cfg *osuAPIConfig) gin.HandlerFunc {
-	url, err := osuRequestAuthURL(cfg)
+func mainPageFunc(cfg *config) gin.HandlerFunc {
+	url, err := osuRequestAuthURL(&cfg.APIConfig)
 	if err != nil {
 		panic("Couldn't create auth url")
 	}
@@ -124,6 +132,7 @@ func mainPageFunc(cfg *osuAPIConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
 			"OsuAuthURL": url,
+			"EnableAuth": cfg.Auth.EnableAuth,
 		})
 	}
 }
@@ -134,7 +143,7 @@ func authServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 
 	router.Static("/css/", "html/css")
 	router.GET("/authorize", authFunc(db, cfg))
-	router.GET("/", mainPageFunc(&cfg.APIConfig))
+	router.GET("/", mainPageFunc(&cfg))
 
 	router.Run(cfg.Auth.Address)
 	wg.Done()

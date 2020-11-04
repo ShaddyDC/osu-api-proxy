@@ -16,7 +16,8 @@ type endpointConfig struct {
 }
 
 type authServerConfig struct {
-	Address string `mapstructure:"address"`
+	Address    string `mapstructure:"address"`
+	EnableAuth bool   `mapstructure:"enable_auth"`
 }
 
 type promServerConfig struct {
