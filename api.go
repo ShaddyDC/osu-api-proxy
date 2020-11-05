@@ -45,10 +45,6 @@ func apiAuth(db *sql.DB) gin.HandlerFunc {
 }
 
 func rmtAPIRequest(url string, token string) (string, error) {
-	// if !notRateLimited() {
-	// 	return nil, fmt.Errorf("Server rate limited")
-	// }
-
 	fmt.Println("Fetching remote", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
