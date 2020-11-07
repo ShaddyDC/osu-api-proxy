@@ -2,7 +2,7 @@ version: "3.2"
 
 services:
   db:
-    image: mysql
+    image: mariadb
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: password
