@@ -91,9 +91,11 @@ func apiHandler(handler rmtHandler) gin.HandlerFunc {
 		if err == nil {
 			c.Set("value", val)
 			c.String(http.StatusOK, val)
+			apiCallSuccess.Inc()
 			return
 		}
 		c.String(http.StatusOK, err.Error())
+		apiCallFailed.Inc()
 	}
 }
 

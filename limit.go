@@ -36,7 +36,7 @@ func apiLimitKey() gin.HandlerFunc {
 		if !ipLimiter.Allow() {
 			c.String(http.StatusTooManyRequests, http.StatusText(429))
 			fmt.Println("Ip over rate limit", ip)
-			apiRateLimitedIP.Inc()
+			apiRateLimitedKey.Inc()
 			c.Abort()
 			return
 		}
