@@ -3,6 +3,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Osu Api Proxy</title>
     <link rel="stylesheet" href="/css/sakura.css" type="text/css">
+    <link rel="stylesheet" href="/css/styles.css" type="text/css">
 </head>
 <body>
     <h1>Hello!</h1>
@@ -12,7 +13,9 @@
         You will be redirected to the osu site, where you have to give us access to the api with your account.
         Then you will be redirected back to us, and you will get your key.
     </div>
-    <button type="button" onclick="window.location.href='{{.OsuAuthURL}}'">Authenticate</value>
+    <a class="clickbox" href="{{.OsuAuthURL}}">
+        <div>Authenticate</div>
+    </a>
     {{ else }}
     <div>
         Registration is currently disabled.

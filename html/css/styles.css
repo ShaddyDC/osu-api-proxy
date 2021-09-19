@@ -1,0 +1,10 @@
+.clickbox {
+    display: inline-block;
+    background-color: #ccc;
+    border: 1px solid #ff0000;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    width: 40%;
+}
