@@ -1,3 +1,4 @@
 .vscode
 runtime
 .env
+__debug_bin
