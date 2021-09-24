@@ -19,7 +19,15 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
-		interval := rate.Every(10 * time.Minute)
+		if !cfg.Auth.EnableAuth {
+			c.HTML(http.StatusOK, "index.tmpl", gin.H{
+				"OsuAuthURL": "",
+				"EnableAuth": cfg.Auth.EnableAuth,
+			})
+			return
+		}
+
+		interval := rate.Every(30 * time.Second)
 		limiter := rate.NewLimiter(interval, 1)
 
 		ip := getIP(c)
@@ -28,14 +36,6 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 			c.String(http.StatusTooManyRequests, http.StatusText(429))
 			fmt.Println("Ip over rate limit", ip)
 			apiRateLimitedIP.Inc()
-			return
-		}
-
-		if !cfg.Auth.EnableAuth {
-			c.HTML(http.StatusOK, "index.tmpl", gin.H{
-				"OsuAuthURL": "",
-				"EnableAuth": cfg.Auth.EnableAuth,
-			})
 			return
 		}
 
@@ -48,6 +48,11 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 		}
 
 		token, err := getNewToken(&cfg.APIConfig, code)
+		if err != nil {
+			fmt.Println("Failed to get new token :(")
+			errPage(c, "Failed to get new token")
+			return
+		}
 		expiryTime := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second) // TODO Move to getToken
 
 		user, err := getCurrentUser(token.AccessToken)
