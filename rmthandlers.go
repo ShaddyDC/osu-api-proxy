@@ -32,7 +32,7 @@ var (
 		},
 		{
 			name:        "scorefile",
-			lclEndpoint: "/api/v1/scores/:mode/:score",
+			lclEndpoint: "/api/v1/scorefile/:mode/:score",
 			rmtURL: func(c *gin.Context) string {
 				return "/api/v2/scores/" + c.Param("mode") + "/" + c.Param("score") + "/download"
 			},
