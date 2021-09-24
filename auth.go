@@ -98,7 +98,7 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 				return
 			}
 
-			stmt, err := db.Prepare("INSERT INTO api_tokens (id,api_key,expiryTime,accessToken,refreshToken) VALUES(?,?,?,?,?)")
+			stmt, err := db.Prepare("INSERT INTO api_tokens (id,api_key,expiryTime,accessToken,refreshToken) VALUES($1,$2,$3,$4,$5)")
 			defer stmt.Close()
 			if err != nil {
 				fmt.Println(err)

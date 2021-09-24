@@ -1,5 +1,5 @@
 [database]
-dsn = "osuproxy:password@tcp(db:3306)/osuproxy"
+dsn = "host=localhost port=5432 user=osuproxy password=password dbname=osuproxy sslmode=disable"
 
 [api]
 client_id = 1706

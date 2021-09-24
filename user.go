@@ -24,7 +24,7 @@ func randomString(length int) (string, error) {
 }
 
 func keyToToken(key string, db *sql.DB) (string, error) {
-	rows, err := db.Query("SELECT accessToken FROM api_tokens WHERE api_key=? LIMIT 1", key)
+	rows, err := db.Query("SELECT accessToken FROM api_tokens WHERE api_key=$1 LIMIT 1", key)
 	defer rows.Close()
 	if err != nil {
 		return "", fmt.Errorf("Error querying database. %v", err)
@@ -43,7 +43,7 @@ func keyToToken(key string, db *sql.DB) (string, error) {
 
 func keyExists(key string, db *sql.DB) (bool, error) {
 	var keyCount int
-	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE api_key = ? LIMIT 1", key).Scan(&keyCount)
+	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE api_key = $1 LIMIT 1", key).Scan(&keyCount)
 	if err != nil {
 		return false, fmt.Errorf("Error checking database. %v", err)
 	}
@@ -53,7 +53,7 @@ func keyExists(key string, db *sql.DB) (bool, error) {
 
 func userExists(id int64, db *sql.DB) (bool, error) {
 	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE id = ? LIMIT 1", id).Scan(&count)
+	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE id = $1 LIMIT 1", id).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("Error checking database. %v", err)
 	}
@@ -63,7 +63,7 @@ func userExists(id int64, db *sql.DB) (bool, error) {
 
 func userKey(id int64, db *sql.DB) (string, error) {
 	var key string
-	err := db.QueryRow("SELECT api_key FROM api_tokens WHERE id = ? LIMIT 1", id).Scan(&key)
+	err := db.QueryRow("SELECT api_key FROM api_tokens WHERE id = $1 LIMIT 1", id).Scan(&key)
 	if err != nil {
 		return key, fmt.Errorf("Error checking database. %v", err)
 	}
@@ -90,7 +90,7 @@ func uniqueKey(db *sql.DB) (string, error) {
 }
 
 func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshToken string, id int64) error {
-	stmt, err := db.Prepare("UPDATE api_tokens SET expiryTime=?,accessToken=?,refreshToken=? WHERE id=?")
+	stmt, err := db.Prepare("UPDATE api_tokens SET expiryTime=$1,accessToken=$2,refreshToken=$3 WHERE id=$4")
 	defer stmt.Close()
 	if err != nil {
 		return err

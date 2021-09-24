@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -27,27 +27,12 @@ func promServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 }
 
 func main() {
-	// sudo docker run -p 3306:3306 -e MYSQL_ROOT_PASSWORD=password -v "/home/space/tmp/osutestdb":/var/lib/mysql -it --rm mysql
-	// mysql -h127.0.0.1 -uroot -ppassword
-
-	// CREATE TABLE api_tokens (
-	//  `id` INT PRIMARY KEY,
-	// 	`api_key` CHAR(64) NOT NULL,
-	// 	`expiryTime` DATETIME NOT NULL,
-	// 	`accessToken` LONGTEXT NOT NULL,
-	// 	`refreshToken` LONGTEXT NOT NULL,
-	//  UNIQUE Key(`api_key`),
-	//  UNIQUE INDEX(`api_key`)
-	// );
-	// CREATE UNIQUE INDEX `key_index` ON api_tokens (`api_key`);
-
 	cfg, err := getConfig()
-
 	if err != nil {
 		fmt.Println("Error: ", err)
 	}
 
-	db, err := sql.Open("mysql", cfg.Database.Dsn+"?parseTime=true")
+	db, err := sql.Open("postgres", cfg.Database.Dsn)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -58,13 +43,12 @@ func main() {
 	db.SetMaxIdleConns(10)
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS api_tokens (" +
-		"`id` INT PRIMARY KEY," +
-		"`api_key` CHAR(64) NOT NULL," +
-		"`expiryTime` DATETIME NOT NULL," +
-		"`accessToken` LONGTEXT NOT NULL," +
-		"`refreshToken` LONGTEXT NOT NULL," +
-		"UNIQUE Key(`api_key`)," +
-		"UNIQUE INDEX(`api_key`)" +
+		"id INT PRIMARY KEY," +
+		"api_key CHAR(64) NOT NULL," +
+		"expiryTime timestamp NOT NULL," +
+		"accessToken TEXT NOT NULL," +
+		"refreshToken TEXT NOT NULL," +
+		"UNIQUE(api_key)" +
 		")")
 	if err != nil {
 		panic(err)
