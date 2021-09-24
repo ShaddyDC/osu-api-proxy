@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -30,5 +31,14 @@ func rmtAPIRequest(url string, token string) (string, error) {
 		return "", fmt.Errorf("error reading request. %v", err)
 	}
 
-	return string(body), nil
+	// Check if it's json containing an error
+	var jsonError map[string]interface{}
+	err = json.Unmarshal(body, &jsonError)
+	rmtErr, hasKey := jsonError["error"]
+
+	if err != nil && !hasKey {
+		return string(body), nil
+	}
+
+	return string(body), fmt.Errorf(fmt.Sprintf("remote error %v", rmtErr))
 }

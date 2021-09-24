@@ -61,13 +61,13 @@ func apiHandler(handler rmtHandler) gin.HandlerFunc {
 		url := "https://osu.ppy.sh" + handler.rmtURL(c)
 
 		val, err := rmtAPIRequest(url, token)
-		if err == nil {
+		if err == nil { // TODO: It may make sense to use this to cache in some error cases as well
 			c.Set("value", val)
 			c.String(http.StatusOK, val)
 			apiCallSuccess.Inc()
 			return
 		}
-		c.String(http.StatusOK, err.Error())
+		c.String(http.StatusInternalServerError, err.Error())
 		apiCallFailed.Inc()
 	}
 }
