@@ -23,7 +23,7 @@ func apiAuth(db *sql.DB) gin.HandlerFunc {
 
 		apiLimiter := getVisitor(apiVisitors, apiKey)
 		if !apiLimiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			fmt.Println("Api key over rate limit", apiKey)
 			apiRateLimitedKey.Inc()
 			c.Abort()
@@ -103,8 +103,7 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 		}
 
 		// Local endpoint specific rate limits
-		var lclLimitHandler gin.HandlerFunc
-		lclLimitHandler = apiNoLimit()
+		var lclLimitHandler gin.HandlerFunc = apiNoLimit()
 
 		// Remote endpoint specific rate limits
 		var rmtLimitHandler gin.HandlerFunc

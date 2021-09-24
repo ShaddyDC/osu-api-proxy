@@ -57,32 +57,32 @@ func osuRequestAuthURL(cfg *osuAPIConfig) (string, error) {
 func getTokenImpl(code interface{}) (*TokenResult, error) {
 	buf, err := json.Marshal(code)
 	if err != nil {
-		return nil, fmt.Errorf("Error JSONifying object %v. %v", code, err)
+		return nil, fmt.Errorf("error JSONifying object %v. %v", code, err)
 	}
 
 	resp, err := postRequestWithBody("https://osu.ppy.sh/oauth/token", bytes.NewBuffer(buf))
 	if err != nil {
-		return nil, fmt.Errorf("Error executing auth request. %v", err)
+		return nil, fmt.Errorf("error executing auth request. %v", err)
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading auth request. %v", err)
+		return nil, fmt.Errorf("error reading auth request. %v", err)
 	}
 
 	var token TokenResult
 	err = json.Unmarshal(body, &token)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing auth request. %v", err)
+		return nil, fmt.Errorf("error parsing auth request. %v", err)
 	}
 
 	if len(token.Error) > 0 {
-		return &token, fmt.Errorf("Error with auth request. %v", token.Error)
+		return &token, fmt.Errorf("error with auth request. %v", token.Error)
 	}
 
 	if len(token.AccessToken) < 5 {
-		return &token, fmt.Errorf("Broken token. %v", token.AccessToken)
+		return &token, fmt.Errorf("broken token. %v", token.AccessToken)
 	}
 
 	return &token, nil
@@ -91,7 +91,7 @@ func getTokenImpl(code interface{}) (*TokenResult, error) {
 func postRequestWithBody(url string, body io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't create request. %v", err)
+		return nil, fmt.Errorf("couldn't create request. %v", err)
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -100,7 +100,7 @@ func postRequestWithBody(url string, body io.Reader) (*http.Response, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return resp, fmt.Errorf("Couldn't execute request with client. %v", err)
+		return resp, fmt.Errorf("couldn't execute request with client. %v", err)
 	}
 
 	return resp, nil

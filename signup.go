@@ -33,7 +33,7 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 		ip := getIP(c)
 		ipLimiter := getVisitorWithLimiter(authVisitors, ip, limiter)
 		if !ipLimiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			fmt.Println("Ip over rate limit", ip)
 			apiRateLimitedIP.Inc()
 			return
@@ -104,12 +104,12 @@ func authFunc(db *sql.DB, cfg config) gin.HandlerFunc {
 			}
 
 			stmt, err := db.Prepare("INSERT INTO api_tokens (id,api_key,expiryTime,accessToken,refreshToken) VALUES($1,$2,$3,$4,$5)")
-			defer stmt.Close()
 			if err != nil {
 				fmt.Println(err)
 				errPage(c, fmt.Sprintf("Error: %v", err))
 				return
 			}
+			defer stmt.Close()
 
 			_, err = stmt.Exec(user.ID, key, expiryTime, token.AccessToken, token.RefreshToken)
 			if err != nil {

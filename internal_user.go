@@ -25,17 +25,17 @@ type userCompact struct {
 func getCurrentUser(token string) (*userCompact, error) {
 	body, err := rmtAPIRequest("https://osu.ppy.sh/api/v2/me/osu", token)
 	if err != nil {
-		return nil, fmt.Errorf("Error with request. %v", err)
+		return nil, fmt.Errorf("error with request. %v", err)
 	}
 
 	var user userCompact
 	err = json.Unmarshal([]byte(body), &user)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing user request. %v", err)
+		return nil, fmt.Errorf("error parsing user request. %v", err)
 	}
 
 	if len(user.Error) > 0 {
-		return &user, fmt.Errorf("Error with request. %v", user.Error)
+		return &user, fmt.Errorf("error with request. %v", user.Error)
 	}
 
 	return &user, nil

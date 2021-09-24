@@ -17,7 +17,7 @@ func apiLimitIP() gin.HandlerFunc {
 		ipLimiter := getVisitor(ipVisitors, ip)
 
 		if !ipLimiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			fmt.Println("Ip over rate limit", ip)
 			apiRateLimitedIP.Inc()
 			c.Abort()
@@ -34,7 +34,7 @@ func apiLimitKey() gin.HandlerFunc {
 		ipLimiter := getVisitor(ipVisitors, ip)
 
 		if !ipLimiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			fmt.Println("Ip over rate limit", ip)
 			apiRateLimitedKey.Inc()
 			c.Abort()
@@ -50,7 +50,7 @@ func apiLclLimit(limit rate.Limit) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		if !limiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(429))
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			c.Abort()
 			return
 		}

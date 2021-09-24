@@ -25,18 +25,18 @@ func randomString(length int) (string, error) {
 
 func keyToToken(key string, db *sql.DB) (string, error) {
 	rows, err := db.Query("SELECT accessToken FROM api_tokens WHERE api_key=$1 LIMIT 1", key)
-	defer rows.Close()
 	if err != nil {
-		return "", fmt.Errorf("Error querying database. %v", err)
+		return "", fmt.Errorf("error querying database. %v", err)
 	}
+	defer rows.Close()
 
 	if !rows.Next() {
-		return "", fmt.Errorf("No token found")
+		return "", fmt.Errorf("no token found")
 	}
 
 	var token string
 	if err = rows.Scan(&token); err != nil {
-		return token, fmt.Errorf("Couldn't scan token %v", err)
+		return token, fmt.Errorf("couldn't scan token %v", err)
 	}
 	return token, nil
 }
@@ -45,7 +45,7 @@ func keyExists(key string, db *sql.DB) (bool, error) {
 	var keyCount int
 	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE api_key = $1 LIMIT 1", key).Scan(&keyCount)
 	if err != nil {
-		return false, fmt.Errorf("Error checking database. %v", err)
+		return false, fmt.Errorf("error checking database. %v", err)
 	}
 
 	return keyCount == 1, nil
@@ -55,7 +55,7 @@ func userExists(id int64, db *sql.DB) (bool, error) {
 	var count int
 	err := db.QueryRow("SELECT COUNT(*) FROM api_tokens WHERE id = $1 LIMIT 1", id).Scan(&count)
 	if err != nil {
-		return false, fmt.Errorf("Error checking database. %v", err)
+		return false, fmt.Errorf("error checking database. %v", err)
 	}
 
 	return count == 1, nil
@@ -65,7 +65,7 @@ func userKey(id int64, db *sql.DB) (string, error) {
 	var key string
 	err := db.QueryRow("SELECT api_key FROM api_tokens WHERE id = $1 LIMIT 1", id).Scan(&key)
 	if err != nil {
-		return key, fmt.Errorf("Error checking database. %v", err)
+		return key, fmt.Errorf("error checking database. %v", err)
 	}
 
 	return key, nil
@@ -75,7 +75,7 @@ func uniqueKey(db *sql.DB) (string, error) {
 	for {
 		key, err := randomString(64)
 		if err != nil {
-			return "", fmt.Errorf("Error using RandomString function. %v", err)
+			return "", fmt.Errorf("error using RandomString function. %v", err)
 		}
 
 		exists, err := keyExists(key, db)
@@ -91,10 +91,10 @@ func uniqueKey(db *sql.DB) (string, error) {
 
 func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshToken string, id int64) error {
 	stmt, err := db.Prepare("UPDATE api_tokens SET expiryTime=$1,accessToken=$2,refreshToken=$3 WHERE id=$4")
-	defer stmt.Close()
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	_, err = stmt.Exec(expiryTime, accessToken, refreshToken, id)
 	if err != nil {
@@ -106,11 +106,11 @@ func updateTokens(db *sql.DB, expiryTime time.Time, accessToken string, refreshT
 func refreshTokens(db *sql.DB, cfg *osuAPIConfig) {
 	fmt.Println("Refreshing tokens...")
 	rows, err := db.Query("SELECT id, refreshToken FROM api_tokens")
-	defer rows.Close()
 	if err != nil {
 		fmt.Println("Error refreshing tokens", err)
 		return
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var (
