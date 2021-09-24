@@ -54,6 +54,8 @@ func main() {
 		panic(err)
 	}
 
+	cache := setupCache(&cfg.RedisConfig)
+
 	metricsInit()
 
 	uc, _ := getUserCount(db)
@@ -69,7 +71,7 @@ func main() {
 	wg.Add(3)
 
 	go authServer(db, cfg, wg)
-	go apiServer(db, cfg, wg)
+	go apiServer(db, cache, cfg, wg)
 	go promServer(db, cfg, wg)
 
 	wg.Wait()

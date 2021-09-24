@@ -6,6 +6,10 @@ client_id = 1706
 client_secret = ""
 redirect_uri = "http://localhost/authorize"
 
+[Redis]
+address = "localhost:6379"
+password = ""
+
 [apiserver]
 address = ":8126"
 # Note that the reverse proxy config has to be adapted too

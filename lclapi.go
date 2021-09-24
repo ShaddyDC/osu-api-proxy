@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 )
 
 func apiAuth(db *sql.DB) gin.HandlerFunc {
@@ -71,7 +72,7 @@ func apiHandler(handler rmtHandler) gin.HandlerFunc {
 	}
 }
 
-func apiServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
+func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) {
 	router := gin.Default()
 
 	// authentication and local api-wide rate limits
@@ -96,7 +97,7 @@ func apiServer(db *sql.DB, cfg config, wg *sync.WaitGroup) {
 		// Cache stuff maybe
 		var cacheHandler gin.HandlerFunc
 		if handlerCFG.CachePolicy == "always" {
-			cacheHandler = apiCache(handler)
+			cacheHandler = apiCache(cache, handler)
 		} else {
 			cacheHandler = apiCacheNoCache()
 		}
