@@ -36,9 +36,12 @@ func rmtAPIRequest(url string, token string) (string, error) {
 	err = json.Unmarshal(body, &jsonError)
 	rmtErr, hasKey := jsonError["error"]
 
-	if err != nil && !hasKey {
+	// If body doesn't contain json or no error
+	if err != nil || (err == nil && !hasKey) {
 		return string(body), nil
 	}
 
-	return string(body), fmt.Errorf(fmt.Sprintf("remote error %v", rmtErr))
+	rmtErrDesc, _ := jsonError["error_description"]
+
+	return string(body), fmt.Errorf(fmt.Sprintf("remote error %v, description: %v", rmtErr, rmtErrDesc))
 }

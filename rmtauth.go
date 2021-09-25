@@ -29,11 +29,12 @@ type refreshPost struct {
 
 // TokenResult contains user authentication stuff
 type TokenResult struct {
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int64  `json:"expires_in"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	Error        string `json:"error"`
+	TokenType        string `json:"token_type"`
+	ExpiresIn        int64  `json:"expires_in"`
+	AccessToken      string `json:"access_token"`
+	RefreshToken     string `json:"refresh_token"`
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
 }
 
 func osuRequestAuthURL(cfg *osuAPIConfig) (string, error) {
@@ -78,7 +79,7 @@ func getTokenImpl(code interface{}) (*TokenResult, error) {
 	}
 
 	if len(token.Error) > 0 {
-		return &token, fmt.Errorf("error with auth request. %v", token.Error)
+		return &token, fmt.Errorf("error with auth request. %v, description: %v", token.Error, token.ErrorDescription)
 	}
 
 	if len(token.AccessToken) < 5 {
