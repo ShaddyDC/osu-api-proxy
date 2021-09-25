@@ -14,6 +14,7 @@ password = ""
 address = ":8126"
 # Note that the reverse proxy config has to be adapted too
 allowed_origins = [ "http://localhost", "http://localhost:8000" ]
+public_cache = true
 
 [[apiserver.endpoint]]
 handler = "userinfo"

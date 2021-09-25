@@ -82,7 +82,6 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 	}))
 
 	router.Use(apiLimitIP())
-	router.Use(apiAuth(db))
 
 	// Remote api total aggregate rate limits
 	globalRmtLimitHandler := apiRmtLimit(10)
@@ -114,7 +113,11 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 		}
 
 		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lclEndpoint)
-		router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+		if cfg.APIServer.PublicCache {
+			router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, apiAuth(db), rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+		} else {
+			router.GET(handler.lclEndpoint, lclLimitHandler, apiAuth(db), cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+		}
 		// TODO: Synchronisation to prevent duplicate work
 	}
 

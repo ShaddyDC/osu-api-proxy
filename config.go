@@ -33,6 +33,7 @@ type apiserverConfig struct {
 	Address        string           `mapstructure:"address"`
 	AllowedOrigins []string         `mapstructure:"allowed_origins"`
 	Endpoints      []endpointConfig `mapstructure:"endpoint"`
+	PublicCache    bool             `mapstructure:"public_cache"`
 }
 
 type appConfig struct {
