@@ -2,15 +2,20 @@ version: "3.2"
 
 services:
   db:
-    image: mariadb
+    image: postgres
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: osuproxy
-      MYSQL_USER: osuproxy
-      MYSQL_PASSWORD: password
+      POSTGRES_PASSWORD: password
+      POSTGRES_USER: osuproxy
     volumes:
-      - ./runtime/db:/var/lib/mysql
+      - ./runtime/db:/var/lib/postgresql/data
+
+  redis:
+    image: redis
+    restart: always
+    volumes:
+      - ./runtime/redis:/data
+    command: redis-server --appendonly yes
 
   osu-api-proxy:
     build: "./"
@@ -19,7 +24,6 @@ services:
       API_CLIENT_SECRET: ${API_CLIENT_SECRET}
     volumes:
       - ./config.toml:/etc/osuproxy/config.toml
-      - ./runtime/cache:/cache
 
   web:
     image: shobble/caddy-cloudflare
