@@ -92,6 +92,8 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 		if !exists {
 			panic(fmt.Sprint("Endpoint does not exist", handlerCFG.Handler))
 		}
+		// Remove used handlers so we have a list of unused ones
+		delete(handlers, handlerCFG.Handler)
 
 		// Cache stuff maybe
 		var cacheHandler gin.HandlerFunc
@@ -119,6 +121,13 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 			router.GET(handler.lclEndpoint, lclLimitHandler, apiAuth(db), cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
 		}
 		// TODO: Synchronisation to prevent duplicate work
+	}
+
+	for _, handler := range handlers {
+		fmt.Println("Disabling endpoint", handler)
+		router.GET(handler.lclEndpoint, func(c *gin.Context) {
+			c.File("html/disabled.json")
+		})
 	}
 
 	router.Run(cfg.APIServer.Address)
