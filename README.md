@@ -1,7 +1,7 @@
 # osu-api-proxy
 
 Proxy for the [osu!api v2](https://osu.ppy.sh/docs/index.html) written in go.
-Allows applications to communicate with only an api key, while the server takes place of OAuth management.
+Allows applications to communicate with only an api key, while the server takes care of OAuth management.
 
 ## Usage
 
