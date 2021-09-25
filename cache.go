@@ -49,6 +49,7 @@ func apiCache(redis *redis.Client, handler rmtHandler) gin.HandlerFunc {
 		if err == nil {
 			fmt.Println("Loaded from cache", key)
 			apiCallCached.Inc()
+			apiCallSuccess.Inc()
 			c.String(http.StatusOK, string(value))
 			c.Abort()
 			return
