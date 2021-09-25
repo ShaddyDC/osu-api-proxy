@@ -115,6 +115,7 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 
 		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lclEndpoint)
 		router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+		// TODO: Synchronisation to prevent duplicate work
 	}
 
 	router.Run(cfg.APIServer.Address)

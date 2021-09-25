@@ -68,6 +68,9 @@ func apiCache(redis *redis.Client, handler rmtHandler) gin.HandlerFunc {
 			return
 		}
 
+		// Note that redis is single-threaded, so this isn't a race condition probably
+		// It isn't an issue if we overwrite data as it should be identical
+		// The only issue is potentially duplicate work
 		fmt.Println("Caching", key)
 		err = redis.Set(c, key, value, 0).Err()
 		if err != nil {
