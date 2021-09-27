@@ -16,6 +16,7 @@ address = ":8126"
 allowed_origins = [ "http://localhost", "http://localhost:8000" ]
 public_cache = true
 
+# Removing an endpoint will disable it
 [[apiserver.endpoint]]
 handler = "userinfo"
 cache = "never"
