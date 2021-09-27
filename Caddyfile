@@ -1,6 +1,6 @@
-localhost:80 {
-    reverse_proxy * osu-api-proxy:8125
-    reverse_proxy /api/* osu-api-proxy:8126 {
+localhost {
+    reverse_proxy * localhost:8125
+    reverse_proxy /api/* localhost:8126 {
         header_down Access-Control-Allow-Origin http://localhost:8000
         header_down Access-Control-Allow-Headers api-key
     }
