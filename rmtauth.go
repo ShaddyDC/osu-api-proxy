@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type tokenPost struct {
@@ -35,6 +36,7 @@ type TokenResult struct {
 	RefreshToken     string `json:"refresh_token"`
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
+	ExpiryTime       time.Time
 }
 
 func osuRequestAuthURL(cfg *osuAPIConfig) (string, error) {
@@ -85,6 +87,8 @@ func getTokenImpl(code interface{}) (*TokenResult, error) {
 	if len(token.AccessToken) < 5 {
 		return &token, fmt.Errorf("broken token. %v", token.AccessToken)
 	}
+
+	token.ExpiryTime = time.Now().Add(time.Duration(token.ExpiresIn) * time.Second)
 
 	return &token, nil
 }

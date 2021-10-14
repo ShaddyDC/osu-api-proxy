@@ -28,14 +28,34 @@ func apiLimitIP() gin.HandlerFunc {
 	}
 }
 
-func apiLimitKey() gin.HandlerFunc {
+func apiLimitAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ip := getIP(c)
-		ipLimiter := getVisitor(ipVisitors, ip)
+		interval := rate.Every(30 * time.Second)
+		defaultLimiter := rate.NewLimiter(interval, 1)
 
-		if !ipLimiter.Allow() {
+		ip := getIP(c)
+		limiter := getVisitorWithLimiter(authVisitors, ip, defaultLimiter)
+
+		if !limiter.Allow() {
 			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
 			fmt.Println("Ip over rate limit", ip)
+			apiRateLimitedIP.Inc()
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func apiLimitKey() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.GetHeader("api-key")
+		apiLimiter := getVisitor(apiVisitors, key)
+
+		if !apiLimiter.Allow() {
+			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
+			fmt.Println("Api key over rate limit", key)
 			apiRateLimitedKey.Inc()
 			c.Abort()
 			return

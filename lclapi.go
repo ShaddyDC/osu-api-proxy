@@ -21,15 +21,6 @@ func apiAuth(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		apiLimiter := getVisitor(apiVisitors, apiKey)
-		if !apiLimiter.Allow() {
-			c.String(http.StatusTooManyRequests, http.StatusText(http.StatusTooManyRequests))
-			fmt.Println("Api key over rate limit", apiKey)
-			apiRateLimitedKey.Inc()
-			c.Abort()
-			return
-		}
-
 		token, err := keyToToken(apiKey, db)
 		if err != nil {
 			c.String(http.StatusUnauthorized, "Couldn't get token")
@@ -116,9 +107,9 @@ func apiServer(db *sql.DB, cache *redis.Client, cfg config, wg *sync.WaitGroup) 
 
 		fmt.Println("Using endpoint", handlerCFG.Handler, handler.lclEndpoint)
 		if cfg.APIServer.PublicCache {
-			router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, apiAuth(db), rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+			router.GET(handler.lclEndpoint, lclLimitHandler, cacheHandler, apiLimitKey(), apiAuth(db), rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
 		} else {
-			router.GET(handler.lclEndpoint, lclLimitHandler, apiAuth(db), cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
+			router.GET(handler.lclEndpoint, lclLimitHandler, apiLimitKey(), apiAuth(db), cacheHandler, rmtLimitHandler, globalRmtLimitHandler, apiHandler(handler))
 		}
 		// TODO: Synchronisation to prevent duplicate work
 	}
