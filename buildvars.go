@@ -1,6 +1,6 @@
 package main
 
 var (
-	BuildCommit string
-	BuildTime   string
+	BuildCommit string = "dev"
+	BuildTime   string = "1970 or something"
 )
