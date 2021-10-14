@@ -116,8 +116,10 @@ func mainPageFunc(cfg *config) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"OsuAuthURL": url,
-			"EnableAuth": cfg.Auth.EnableAuth,
+			"OsuAuthURL":  url,
+			"EnableAuth":  cfg.Auth.EnableAuth,
+			"BuildCommit": BuildCommit,
+			"BuildTime":   BuildTime,
 		})
 	}
 }

@@ -13,7 +13,7 @@
         You will be redirected to the osu site, where you have to give us access to the api with your account.
         Then you will be redirected back to us, and you will get your key.
     </div>
-    <a class="clickbox" href="{{.OsuAuthURL}}">
+    <a class="clickbox" href="{{ .OsuAuthURL }}">
         <div>Authenticate</div>
     </a>
     {{ else }}
@@ -21,4 +21,9 @@
         Registration is currently disabled.
     </div>
     {{ end }}
+
+    <footer>
+        <p>{{ .BuildCommit }}</p>
+        <p>{{ .BuildTime }}</p>
+    </footer>
 </body>
