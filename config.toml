@@ -29,6 +29,10 @@ cache = "always"
 handler = "scorefile"
 cache = "always"
 
+[[apiserver.endpoint]]
+handler = "beatmaps_lookup"
+cache = "never"
+
 [auth]
 address = ":8125"
 enable_auth = true
