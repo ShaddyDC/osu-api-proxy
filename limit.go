@@ -113,7 +113,7 @@ var ipVisitors = &visitors{}
 var authVisitors = &visitors{}
 
 func getVisitor(vs *visitors, key string) *rate.Limiter {
-	return getVisitorWithLimiter(vs, key, rate.NewLimiter(2, 1))
+	return getVisitorWithLimiter(vs, key, rate.NewLimiter(2, 2))
 }
 
 func getVisitorWithLimiter(vs *visitors, key string, limiter *rate.Limiter) *rate.Limiter {
