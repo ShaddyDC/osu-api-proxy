@@ -24,9 +24,8 @@ type promServerConfig struct {
 	Address string `mapstructure:"address"`
 }
 
-type redisConfig struct {
-	Address  string `mapstructure:"address"`
-	Password string `mapstructure:"password"`
+type etcdConfig struct {
+	Endpoints []string `mapstructure:"endpoints"`
 }
 
 type apiserverConfig struct {
@@ -47,13 +46,13 @@ type osuAPIConfig struct {
 }
 
 type config struct {
-	Database    databaseConfig   `mapstructure:"database"`
-	APIConfig   osuAPIConfig     `mapstructure:"api"`
-	RedisConfig redisConfig      `mapstructure:"Redis"`
-	APIServer   apiserverConfig  `mapstructure:"apiserver"`
-	Auth        authServerConfig `mapstructure:"auth"`
-	PromServer  promServerConfig `mapstructure:"prom"`
-	App         appConfig        `mapstructure:"application"`
+	Database   databaseConfig   `mapstructure:"database"`
+	APIConfig  osuAPIConfig     `mapstructure:"api"`
+	EtcdConfig etcdConfig       `mapstructure:"cache"`
+	APIServer  apiserverConfig  `mapstructure:"apiserver"`
+	Auth       authServerConfig `mapstructure:"auth"`
+	PromServer promServerConfig `mapstructure:"prom"`
+	App        appConfig        `mapstructure:"application"`
 }
 
 func getConfig() (config, error) {

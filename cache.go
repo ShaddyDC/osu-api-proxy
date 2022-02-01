@@ -5,25 +5,26 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/coreos/etcd/client"
 )
 
-func setupCache(cfg *redisConfig) *redis.Client {
-	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.Address,
-		Password: cfg.Password,
-		DB:       0,
-	})
-
-	_, err := client.Ping(context.Background()).Result()
-	if err != nil {
-		panic(fmt.Sprintf("Cannot ping redis %s", string(err.Error())))
+func setupCache(cfg *etcdConfig) client.Client {
+	etcdCfg := client.Config{
+		Endpoints: cfg.Endpoints,
+		// set timeout per request to fail fast when the target endpoint is unavailable
+		HeaderTimeoutPerRequest: time.Second,
 	}
 
-	return client
+	cache, err := client.New(etcdCfg)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't connect to etcd: %s", string(err.Error())))
+	}
+
+	return cache
 }
 
 func paramsToString(params gin.Params) string {
@@ -41,16 +42,18 @@ func apiCacheNoCache() gin.HandlerFunc {
 	}
 }
 
-func apiCache(redis *redis.Client, handler rmtHandler) gin.HandlerFunc {
+func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := handler.name + "-" + paramsToString(c.Params)
 
-		value, err := redis.Get(c, key).Result()
+		kapi := client.NewKeysAPI(*cache)
+		resp, err := kapi.Get(context.Background(), key, nil)
+
 		if err == nil {
 			fmt.Println("Loaded from cache", key)
 			apiCallCached.Inc()
 			apiCallSuccess.Inc()
-			c.String(http.StatusOK, string(value))
+			c.String(http.StatusOK, resp.Node.Value)
 			c.Abort()
 			return
 		}
@@ -73,9 +76,11 @@ func apiCache(redis *redis.Client, handler rmtHandler) gin.HandlerFunc {
 		// It isn't an issue if we overwrite data as it should be identical
 		// The only issue is potentially duplicate work
 		fmt.Println("Caching", key)
-		err = redis.Set(c, key, value, 0).Err()
+		resp, err = kapi.Set(context.Background(), key, value, nil)
 		if err != nil {
 			fmt.Println("Failed to cache", key, err)
+		} else {
+			fmt.Println("Got database response", resp)
 		}
 	}
 }
