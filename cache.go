@@ -64,12 +64,14 @@ func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 		valueInterface, exists := c.Get("value")
 		if !exists {
 			fmt.Println("No value to cache :(")
+			c.Header("Cache-Control", "max-age=0")
 			return
 		}
 
 		value, ok := valueInterface.(string)
 		if !ok {
 			fmt.Println("No value (of correct type) to cache :(")
+			c.Header("Cache-Control", "max-age=0")
 			return
 		}
 
@@ -80,6 +82,7 @@ func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 		resp, err = kapi.Set(context.Background(), key, value, nil)
 		if err != nil {
 			fmt.Println("Failed to cache", key, err)
+			c.Header("Cache-Control", "max-age=0")
 		} else {
 			fmt.Println("Got database response", resp)
 			c.Header("Cache-Control", "public, max-age=604800")
