@@ -16,7 +16,7 @@ Please host your own instance for your own use.
 Requires:
 
 - Posgresql Database
-- Redis cache
+- etcd cache
 - Reverse proxy as with the given Caddyfile configuration
 
 Prometheus metrics are supported and will be documented at a later time.
