@@ -53,6 +53,7 @@ func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 			fmt.Println("Loaded from cache", key)
 			apiCallCached.Inc()
 			apiCallSuccess.Inc()
+			c.Header("Cache-Control", "public, max-age=604800")
 			c.String(http.StatusOK, resp.Node.Value)
 			c.Abort()
 			return
@@ -81,6 +82,7 @@ func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 			fmt.Println("Failed to cache", key, err)
 		} else {
 			fmt.Println("Got database response", resp)
+			c.Header("Cache-Control", "public, max-age=604800")
 		}
 	}
 }
