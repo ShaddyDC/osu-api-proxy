@@ -10,12 +10,18 @@ services:
     volumes:
       - ./runtime/db:/var/lib/postgresql/data
 
-  redis:
-    image: redis
+  cache:
+    image: gcr.io/etcd-development/etcd:latest
     restart: always
     volumes:
-      - ./runtime/redis:/data
-    command: redis-server --appendonly yes
+      - ./runtime/cache:/etcd-data
+    command: > 
+      /usr/local/bin/etcd --data-dir=/etcd-data --name node1
+        --initial-advertise-peer-urls http://cache:2380 
+        --listen-peer-urls http://0.0.0.0:2380 
+        --advertise-client-urls http://cache:2379 
+        --listen-client-urls http://0.0.0.0:2379 
+        --initial-cluster node1=http://cache:2380
 
   osu-api-proxy:
     build: "./"
