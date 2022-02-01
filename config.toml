@@ -29,7 +29,7 @@ handler = "scorefile"
 cache = "always"
 
 [[apiserver.endpoint]]
-handler = "beatmaps_lookup"
+handler = "beatmaps_lookup_checksum"
 cache = "never"
 
 [auth]

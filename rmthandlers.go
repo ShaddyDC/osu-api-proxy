@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,24 +39,10 @@ var (
 			rmtLimit: &[]rate.Limit{rate.Every(6 * time.Second)}[0], // Hack to get a pointer
 		},
 		{
-			name:        "beatmaps_lookup",
-			lclEndpoint: "/api/v1/beatmaps/lookup",
+			name:        "beatmaps_lookup_checksum",
+			lclEndpoint: "/api/v1/beatmaps/lookup/s/:checksum",
 			rmtURL: func(c *gin.Context) string {
-				var params strings.Builder
-				for _, param_name := range []string{"checksum", "filename", "id"} {
-					param := c.Query(param_name)
-					fmt.Printf("Param '%s' found '%s'\n", param_name, param)
-					if param == "" {
-						continue
-					}
-					params.WriteRune('?')
-					params.WriteString(param_name)
-					params.WriteRune('=')
-					params.WriteString(param)
-					break
-				}
-
-				return fmt.Sprint("/api/v2/beatmaps/lookup?" + params.String())
+				return "/api/v2/beatmaps/lookup?checksum=" + c.Param("checksum")
 			},
 		},
 	}
