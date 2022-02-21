@@ -9,17 +9,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/coreos/etcd/client"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func setupCache(cfg *etcdConfig) client.Client {
-	etcdCfg := client.Config{
+func setupCache(cfg *etcdConfig) *clientv3.Client {
+	etcdCfg := clientv3.Config{
 		Endpoints: cfg.Endpoints,
 		// set timeout per request to fail fast when the target endpoint is unavailable
-		HeaderTimeoutPerRequest: time.Second,
+		DialTimeout: time.Second,
 	}
 
-	cache, err := client.New(etcdCfg)
+	cache, err := clientv3.New(etcdCfg)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't connect to etcd: %s", string(err.Error())))
 	}
@@ -42,19 +42,17 @@ func apiCacheNoCache() gin.HandlerFunc {
 	}
 }
 
-func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
+func apiCache(cache *clientv3.Client, handler rmtHandler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := handler.name + "-" + paramsToString(c.Params)
 
-		kapi := client.NewKeysAPI(*cache)
-		resp, err := kapi.Get(context.Background(), key, nil)
-
-		if err == nil {
+		resp, err := cache.Get(context.Background(), key)
+		if err == nil && len(resp.Kvs) != 0 {
 			fmt.Println("Loaded from cache", key)
 			apiCallCached.Inc()
 			apiCallSuccess.Inc()
 			c.Header("Cache-Control", "public, max-age=604800")
-			c.String(http.StatusOK, resp.Node.Value)
+			c.String(http.StatusOK, string(resp.Kvs[0].Value))
 			c.Abort()
 			return
 		}
@@ -79,12 +77,12 @@ func apiCache(cache *client.Client, handler rmtHandler) gin.HandlerFunc {
 		// It isn't an issue if we overwrite data as it should be identical
 		// The only issue is potentially duplicate work
 		fmt.Println("Caching", key)
-		resp, err = kapi.Set(context.Background(), key, value, nil)
+		_, err = cache.Put(context.Background(), key, value)
 		if err != nil {
 			fmt.Println("Failed to cache", key, err)
 			c.Header("Cache-Control", "max-age=0")
 		} else {
-			fmt.Println("Got database response", resp)
+			fmt.Println("Cached", key)
 			c.Header("Cache-Control", "public, max-age=604800")
 		}
 	}
